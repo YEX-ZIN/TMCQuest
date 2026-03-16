@@ -11,6 +11,7 @@ import UserAddScreen from './src/components/screens/UserAddScreen';
 import UserViewScreen from './src/components/screens/UserViewScreen';
 import UserModifyScreen from './src/components/screens/UserModifyScreen';
 import GetStartedScreen from './src/components/screens/GetStartedScreen';
+import LoginScreen from './src/components/screens/LoginScreen';
 
 const Stack = createNativeStackNavigator();
 const Drawer = createDrawerNavigator();
@@ -20,6 +21,7 @@ export const App=()=> {
     <NavigationContainer>
       <Stack.Navigator screenOptions={{headerShown: false}}>
         <Stack.Screen name='GetStarted' component={GetStartedScreen}/>
+        <Stack.Screen name='Login' component={LoginScreen} options={{title: 'Login', headerStyle: {backgroundColor: 'black'}, headerTintColor: 'white'}}/>
         <Stack.Screen name='Main' component={MainDrawer}/>
       </Stack.Navigator>
     </NavigationContainer>

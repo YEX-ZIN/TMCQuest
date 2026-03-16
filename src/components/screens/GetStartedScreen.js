@@ -6,7 +6,7 @@ const GetStartedScreen = ({navigation}) => {
   // Initialisations ---------------------
   // State -------------------------------
   // Handlers ----------------------------
-  const handleGetStarted = () => navigation.replace('Main');
+  const handleGetStarted = () => navigation.replace('Login');
   // View --------------------------------
   return (
     <Screen>
