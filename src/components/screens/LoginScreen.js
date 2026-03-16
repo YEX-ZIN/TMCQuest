@@ -1,19 +1,18 @@
 import { useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import API from '../API/API.js';
 import useStore from '../store/useStore.js';
-import Screen from '../layout/Screen.js';
 import Form from '../UI/Form.js';
 import Icons from '../UI/Icons.js';
 
-const loginEndpoint = 'https://softwarehub.uk/unibase/api/login';
-const loggedinUserKey = 'loggedinUser';
-
 const LoginScreen = ({navigation}) => {
   // Initialisations ---------------------
+  const loginEndpoint = 'https://softwarehub.uk/unibase/api/login';
+  const loggedinUserKey = 'loggedinUser';
   // State -------------------------------
   const [credentials, setCredentials] = useState({email: '', password: ''});
-  const [loggedinUser, saveLoggedinUser] = useStore(loggedinUserKey, null);
+  const [, saveLoggedinUser] = useStore(loggedinUserKey, null);
   // Handlers ----------------------------
   const handleChange = (field, value) => setCredentials({...credentials, [field]: value});
 
@@ -30,62 +29,104 @@ const LoginScreen = ({navigation}) => {
   const handleCancel = () => navigation.replace('GetStarted');
   // View --------------------------------
   return (
-    <Screen>
+    <View style={styles.screen}>
+      <StatusBar style='light' />
       <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Welcome Back</Text>
-          <Text style={styles.subtitle}>Sign in to continue</Text>
+
+        <View style={styles.textBlock}>
+          <Text style={styles.title}>⚔️  Welcome Back</Text>
+          <Text style={styles.subtitle}>Sign in to continue your quest</Text>
         </View>
+
         <View style={styles.card}>
           <Form
             onSubmit={handleLogin}
             onCancel={handleCancel}
             submitLabel="Login"
             submitIcon={<Icons.Submit />}
+            submitButtonStyle={styles.loginButton}
+            submitLabelStyle={styles.loginLabel}
+            cancelButtonStyle={styles.cancelButton}
+            cancelLabelStyle={styles.cancelLabel}
           >
             <Form.InputText
               label="Email"
               value={credentials.email}
               onChange={(value) => handleChange('email', value)}
+              labelStyle={styles.inputLabel}
+              inputStyle={styles.inputField}
             />
             <Form.InputText
               label="Password"
               value={credentials.password}
               onChange={(value) => handleChange('password', value)}
               secureTextEntry={true}
+              labelStyle={styles.inputLabel}
+              inputStyle={styles.inputField}
             />
           </Form>
         </View>
+
       </View>
-    </Screen>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: '#1a1205',
+  },
   container: {
     flex: 1,
     justifyContent: 'center',
-    gap: 20,
+    gap: 28,
+    paddingHorizontal: 30,
   },
-  header: {
+  textBlock: {
     alignItems: 'center',
-    gap: 6,
-    marginBottom: 10,
+    gap: 8,
   },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
+    color: '#c9a84c',
+    letterSpacing: 2,
   },
   subtitle: {
-    fontSize: 16,
-    color: 'grey',
+    fontSize: 15,
+    color: '#9e8c6a',
+    textAlign: 'center',
   },
   card: {
-    backgroundColor: 'white',
+    backgroundColor: '#2a1f0a',
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'lightgray',
+    borderWidth: 2,
+    borderColor: '#c9a84c',
     padding: 20,
+  },
+  loginButton: {
+    backgroundColor: '#c9a84c',
+    borderColor: '#a0802e',
+  },
+  loginLabel: {
+    color: '#1a1205',
+    fontWeight: 'bold',
+  },
+  cancelButton: {
+    backgroundColor: 'transparent',
+    borderColor: '#c9a84c',
+  },
+  cancelLabel: {
+    color: '#c9a84c',
+  },
+  inputLabel: {
+    color: '#e8d5a3',
+  },
+  inputField: {
+    backgroundColor: '#1a1205',
+    borderColor: '#c9a84c',
+    color: '#e8d5a3',
   },
 });
 

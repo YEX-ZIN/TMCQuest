@@ -3,7 +3,7 @@ import { Picker } from '@react-native-picker/picker';
 import Icons from './Icons.js';
 import { Button, ButtonTray } from './Button.js';
 
-const Form = ({children, onSubmit, onCancel, submitLabel, submitIcon}) => {
+const Form = ({children, onSubmit, onCancel, submitLabel, submitIcon, submitButtonStyle, submitLabelStyle, cancelButtonStyle, cancelLabelStyle}) => {
   // Initialisations ---------------------
   // State -------------------------------
   // Handlers ----------------------------
@@ -16,23 +16,23 @@ const Form = ({children, onSubmit, onCancel, submitLabel, submitIcon}) => {
         </ScrollView>
 
         <ButtonTray>
-            <Button label={submitLabel} icon={submitIcon} onClick={onSubmit}/>
-            <Button label="Cancel" icon={<Icons.Close/>} onClick={onCancel}/>
+            <Button label={submitLabel} icon={submitIcon} onClick={onSubmit} styleButton={submitButtonStyle} styleLabel={submitLabelStyle}/>
+            <Button label="Cancel" icon={<Icons.Close/>} onClick={onCancel} styleButton={cancelButtonStyle} styleLabel={cancelLabelStyle}/>
         </ButtonTray>
 
     </KeyboardAvoidingView>
   );
 };
 
-const InputText = ({label, value, onChange, secureTextEntry = false}) => {
+const InputText = ({label, value, onChange, secureTextEntry = false, labelStyle, inputStyle}) => {
     // Initialisations ---------------------
     // State -------------------------------
     // Handlers ----------------------------
     // View --------------------------------
     return(
         <View style={styles.item}>
-        <Text style={styles.itemLabel}>{label}</Text>
-        <TextInput value={value} onChangeText={onChange} style={styles.itemTextInput} secureTextEntry={secureTextEntry}/>
+        <Text style={[styles.itemLabel, labelStyle]}>{label}</Text>
+        <TextInput value={value} onChangeText={onChange} style={[styles.itemTextInput, inputStyle]} secureTextEntry={secureTextEntry}/>
         </View>
     );
 };
