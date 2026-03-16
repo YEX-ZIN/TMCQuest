@@ -21,7 +21,7 @@ const LoginScreen = ({navigation}) => {
       <View style={styles.container}>
 
         <View style={styles.textBlock}>
-          <Text style={styles.title}>⚔️  Welcome Back</Text>
+          <Text style={styles.title}>Welcome Back</Text>
           <Text style={styles.subtitle}>Sign in to continue your quest</Text>
         </View>
 

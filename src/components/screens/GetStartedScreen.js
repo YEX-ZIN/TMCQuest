@@ -19,7 +19,7 @@ const GetStartedScreen = ({navigation}) => {
 
         <View style={styles.textBlock}>
           <Text style={styles.title}>TMCQuest</Text>
-          <Text style={styles.tagline}>⚔️  Your quest begins here  🗺️</Text>
+            <Text style={styles.tagline}>Your quest begins here</Text>
           <Text style={styles.subtitle}>Explore modules, discover knowledge,{'\n'}and conquer your academic journey.</Text>
         </View>
 

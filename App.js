@@ -20,7 +20,17 @@ export const App=()=> {
         <Stack.Screen name='Dashboard' component={DashboardScreen}/>
         <Stack.Screen name='CreateEventScreen' component={CreateEventScreen} options={{headerShown: true, title: 'Create Event', headerStyle: {backgroundColor: 'black'}, headerTintColor: 'white'}}/>
         <Stack.Screen name='JoinEventScreen' component={JoinEventScreen} options={{headerShown: true, title: 'Join Event', headerStyle: {backgroundColor: 'black'}, headerTintColor: 'white'}}/>
-        <Stack.Screen name='EventCacheListScreen' component={EventCacheListScreen} options={{headerShown: true, title: 'Event', headerStyle: {backgroundColor: 'black'}, headerTintColor: 'white'}}/>
+        <Stack.Screen
+          name='EventCacheListScreen'
+          component={EventCacheListScreen}
+          options={{
+            headerShown: true,
+            title: 'Event',
+            headerTransparent: true,
+            headerTintColor: 'white',
+            headerShadowVisible: false,
+          }}
+        />
         <Stack.Screen name='EventLeaderboardScreen' component={EventLeaderboardScreen} options={{headerShown: true, title: 'Leaderboard', headerStyle: {backgroundColor: 'black'}, headerTintColor: 'white'}}/>
       </Stack.Navigator>
     </NavigationContainer>

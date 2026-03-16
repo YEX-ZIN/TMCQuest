@@ -1,5 +1,6 @@
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import Screen from '../layout/Screen';
+import Icons from '../UI/Icons';
 
 const EventLeaderboardScreen = ({navigation, route}) => {
   // Initialisations ---------------------
@@ -19,7 +20,10 @@ const EventLeaderboardScreen = ({navigation, route}) => {
   return (
     <Screen>
       <View style={styles.header}>
-        <Text style={styles.title}>🏆 Leaderboard</Text>
+        <View style={styles.titleRow}>
+          <Icons.Leaderboard color='black' />
+          <Text style={styles.title}>Leaderboard</Text>
+        </View>
         <Text style={styles.eventName}>{event.EventName}</Text>
       </View>
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -46,6 +50,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
     marginBottom: 20,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   title: {
     fontSize: 28,

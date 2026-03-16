@@ -25,7 +25,7 @@ const DashboardScreen = ({navigation}) => {
         <View style={styles.cardsContainer}>
           <View style={styles.card}>
             <View style={styles.cardIcon}>
-              <Text style={styles.cardIconText}>🗺️</Text>
+              <Icons.Map />
             </View>
             <Text style={styles.cardTitle}>Create an Event</Text>
             <Text style={styles.cardDesc}>
@@ -42,7 +42,7 @@ const DashboardScreen = ({navigation}) => {
 
           <View style={styles.card}>
             <View style={styles.cardIcon}>
-              <Text style={styles.cardIconText}>🔑</Text>
+              <Icons.Key />
             </View>
             <Text style={styles.cardTitle}>Join an Event</Text>
             <Text style={styles.cardDesc}>
@@ -76,7 +76,7 @@ const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
     gap: 4,
-    marginBottom: 20,
+    marginBottom: 16,
   },
   title: {
     fontSize: 38,
@@ -113,9 +113,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 2,
-  },
-  cardIconText: {
-    fontSize: 24,
   },
   cardTitle: {
     fontSize: 20,

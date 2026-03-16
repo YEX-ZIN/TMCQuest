@@ -26,7 +26,7 @@ const JoinEventScreen = ({navigation}) => {
     <Screen>
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>🔑 Join Event</Text>
+          <Text style={styles.title}>Join Event</Text>
           <Text style={styles.subtitle}>Enter the invite code shared by the event owner.</Text>
         </View>
         <Form
