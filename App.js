@@ -10,6 +10,7 @@ import UserListScreen from './src/components/screens/UserListScreen';
 import UserAddScreen from './src/components/screens/UserAddScreen';
 import UserViewScreen from './src/components/screens/UserViewScreen';
 import UserModifyScreen from './src/components/screens/UserModifyScreen';
+import GetStartedScreen from './src/components/screens/GetStartedScreen';
 
 const Stack = createNativeStackNavigator();
 const Drawer = createDrawerNavigator();
@@ -17,13 +18,22 @@ const Drawer = createDrawerNavigator();
 export const App=()=> {
   return (
     <NavigationContainer>
-      <Drawer.Navigator initialRouteName = 'Modules' > 
-        <Drawer.Screen name = 'Modules' component ={ModuleStack}/>
-        <Drawer.Screen name = 'User' component ={UserStack}/>
-      </Drawer.Navigator> 
+      <Stack.Navigator screenOptions={{headerShown: false}}>
+        <Stack.Screen name='GetStarted' component={GetStartedScreen}/>
+        <Stack.Screen name='Main' component={MainDrawer}/>
+      </Stack.Navigator>
     </NavigationContainer>
   );
 };
+
+function MainDrawer(){
+  return (
+    <Drawer.Navigator initialRouteName = 'Modules' > 
+      <Drawer.Screen name = 'Modules' component ={ModuleStack}/>
+      <Drawer.Screen name = 'User' component ={UserStack}/>
+    </Drawer.Navigator>
+  );
+}
 
 function ModuleStack(){
 
