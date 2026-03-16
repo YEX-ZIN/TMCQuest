@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 import Screen from '../layout/Screen';
 import { Button } from '../UI/Button';
 
@@ -11,7 +11,7 @@ const GetStartedScreen = ({navigation}) => {
   return (
     <Screen>
       <View style={styles.container}>
-        <Text style={styles.title}>TMCQuest</Text>
+        <Image source={require('../../assets/logo.png')} style={styles.logo} resizeMode="contain" />
         <Text style={styles.subtitle}>Manage your TMC quests</Text>
         <Button label="Get Started" onClick={handleGetStarted} styleButton={styles.startButton} styleLabel={styles.startLabel}/>
         <Text style={styles.signupText}>Sign Up</Text>
@@ -28,9 +28,9 @@ const styles = StyleSheet.create({
     gap: 25,
     paddingHorizontal: 30,
   },
-  title: {
-    fontSize: 40,
-    fontWeight: 'bold',
+  logo: {
+    width: 280,
+    height: 280,
   },
   subtitle: {
     fontSize: 18,
