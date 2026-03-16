@@ -14,6 +14,7 @@ const GetStartedScreen = ({navigation}) => {
         <Text style={styles.title}>TMCQuest</Text>
         <Text style={styles.subtitle}>Manage your TMC quests</Text>
         <Button label="Get Started" onClick={handleGetStarted} styleButton={styles.startButton} styleLabel={styles.startLabel}/>
+        <Text style={styles.signupText}>Sign Up</Text>
       </View>
     </Screen>
   );
@@ -46,6 +47,11 @@ const styles = StyleSheet.create({
   startLabel: {
     color: 'white',
     fontSize: 18,
+  },
+  signupText: {
+    fontSize: 16,
+    color: 'grey',
+    textDecorationLine: 'underline',
   },
 });
 
