@@ -11,7 +11,7 @@ const Selector = ({children, onPress, style, pressedStyle}) => {
   // View --------------------------------
   return (
     <Pressable 
-        onLongPress={handlePress} 
+        onPress={handlePress} 
         style={ ({pressed}) => [style, pressed && pressedStyle] }
     >
         {children}

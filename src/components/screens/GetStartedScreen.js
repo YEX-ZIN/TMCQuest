@@ -1,7 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 import Screen from '../layout/Screen';
 import { Button } from '../UI/Button';
-import Icons from '../UI/Icons';
 
 const GetStartedScreen = ({navigation}) => {
   // Initialisations ---------------------
@@ -13,8 +12,8 @@ const GetStartedScreen = ({navigation}) => {
     <Screen>
       <View style={styles.container}>
         <Text style={styles.title}>TMCQuest</Text>
-        <Text style={styles.subtitle}>Manage your modules and users</Text>
-        <Button label="Get Started" icon={<Icons.Submit />} onClick={handleGetStarted} styleButton={styles.startButton} styleLabel={styles.startLabel}/>
+        <Text style={styles.subtitle}>Manage your TMC quests</Text>
+        <Button label="Get Started" onClick={handleGetStarted} styleButton={styles.startButton} styleLabel={styles.startLabel}/>
       </View>
     </Screen>
   );
