@@ -12,15 +12,26 @@ const EventCacheListScreen = ({navigation, route}) => {
   const eventStart = event.EventStart || event.EventStartTime || '';
   const eventFinish = event.EventFinish || event.EventEndTime || '';
   const eventCaches = event.EventCaches || [];
-  const formatDateTime = (value) => {
+  const parseDate = (value) => {
     const parsed = new Date(value);
-    if (Number.isNaN(parsed.getTime())) return value || '-';
-    return parsed.toLocaleString(undefined, {
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  };
+  const formatDate = (value) => {
+    const parsed = parseDate(value);
+    if (!parsed) return value || '-';
+    return parsed.toLocaleDateString(undefined, {
       year: 'numeric',
       month: 'short',
       day: '2-digit',
+    });
+  };
+  const formatTime = (value) => {
+    const parsed = parseDate(value);
+    if (!parsed) return '-';
+    return parsed.toLocaleTimeString(undefined, {
       hour: '2-digit',
       minute: '2-digit',
+      hour12: true,
     });
   };
   // State -------------------------------
@@ -139,11 +150,19 @@ const EventCacheListScreen = ({navigation, route}) => {
 
       <View style={styles.topOverlay}>
         <View style={styles.eventHeader}>
-          <Text style={styles.eventName}>{event.EventName}</Text>
+          <View style={styles.eventTopRow}>
+            <Text style={styles.eventName}>{event.EventName}</Text>
+            <View style={styles.eventBadge}>
+              <Text style={styles.eventBadgeText}>Active</Text>
+            </View>
+          </View>
           <View style={styles.metaPill}>
             <View style={styles.metaInline}>
               <Icons.Clock />
-              <Text style={styles.metaText}>{formatDateTime(eventStart)} - {formatDateTime(eventFinish)}</Text>
+              <View style={styles.timeBlock}>
+                <Text style={styles.metaDateText}>{formatDate(eventStart)}</Text>
+                <Text style={styles.metaTimeText}>{formatTime(eventStart)} - {formatTime(eventFinish)}</Text>
+              </View>
             </View>
           </View>
           <View style={styles.metaRow}>
@@ -213,26 +232,47 @@ const styles = StyleSheet.create({
     right: 16,
   },
   eventHeader: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 14,
-    padding: 10,
-    gap: 5,
+    backgroundColor: 'rgba(255, 255, 255, 0.96)',
+    borderRadius: 16,
+    padding: 12,
+    gap: 7,
     borderWidth: 1,
-    borderColor: '#d9d9d9',
+    borderColor: '#e3e3e3',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.18,
-    shadowRadius: 10,
-    elevation: 5,
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  eventTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
   },
   eventName: {
-    fontSize: 20,
+    fontSize: 19,
     fontWeight: 'bold',
     color: 'black',
+    flex: 1,
+  },
+  eventBadge: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#d7d7d7',
+    backgroundColor: '#f6f6f6',
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+  },
+  eventBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#3b3b3b',
+    letterSpacing: 0.3,
   },
   metaRow: {
     flexDirection: 'row',
-    gap: 6,
+    gap: 7,
   },
   metaInline: {
     flexDirection: 'row',
@@ -240,25 +280,35 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   metaPill: {
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f7f7f7',
     borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
+    paddingHorizontal: 9,
+    paddingVertical: 6,
     borderWidth: 1,
-    borderColor: '#ededed',
+    borderColor: '#ececec',
   },
   metaPillSmall: {
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f7f7f7',
     borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
+    paddingHorizontal: 9,
+    paddingVertical: 6,
     borderWidth: 1,
-    borderColor: '#ededed',
+    borderColor: '#ececec',
     flex: 1,
   },
-  metaText: {
+  timeBlock: {
+    gap: 1,
+  },
+  metaDateText: {
     fontSize: 12,
-    color: '#333333',
+    color: '#1f1f1f',
+    fontWeight: '700',
+  },
+  metaTimeText: {
+    fontSize: 11,
+    color: '#4d4d4d',
+    fontWeight: '600',
+    letterSpacing: 0.2,
   },
   codeValue: {
     fontSize: 12,
