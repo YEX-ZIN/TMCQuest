@@ -1,36 +1,23 @@
 import { useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import API from '../API/API.js';
-import useStore from '../store/useStore.js';
 import Form from '../UI/Form.js';
 import Icons from '../UI/Icons.js';
 
 const LoginScreen = ({navigation}) => {
   // Initialisations ---------------------
-  const loginEndpoint = 'https://softwarehub.uk/unibase/api/login';
-  const loggedinUserKey = 'loggedinUser';
   // State -------------------------------
   const [credentials, setCredentials] = useState({email: '', password: ''});
-  const [, saveLoggedinUser] = useStore(loggedinUserKey, null);
   // Handlers ----------------------------
   const handleChange = (field, value) => setCredentials({...credentials, [field]: value});
 
-  const handleLogin = async () => {
-    const response = await API.post(loginEndpoint, credentials);
-    if (response.isSuccess) {
-      await saveLoggedinUser(response.result);
-      navigation.replace('Main');
-    } else {
-      Alert.alert('Login Failed', response.message);
-    }
-  };
+  const handleLogin = () => navigation.replace('Dashboard');
 
   const handleCancel = () => navigation.replace('GetStarted');
   // View --------------------------------
   return (
     <View style={styles.screen}>
-      <StatusBar style='light' />
+      <StatusBar style='dark' />
       <View style={styles.container}>
 
         <View style={styles.textBlock}>
@@ -75,7 +62,7 @@ const LoginScreen = ({navigation}) => {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#1a1205',
+    backgroundColor: 'white',
   },
   container: {
     flex: 1,
@@ -90,43 +77,43 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#c9a84c',
+    color: 'black',
     letterSpacing: 2,
   },
   subtitle: {
     fontSize: 15,
-    color: '#9e8c6a',
+    color: 'grey',
     textAlign: 'center',
   },
   card: {
-    backgroundColor: '#2a1f0a',
+    backgroundColor: 'white',
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#c9a84c',
+    borderColor: 'black',
     padding: 20,
   },
   loginButton: {
-    backgroundColor: '#c9a84c',
-    borderColor: '#a0802e',
+    backgroundColor: 'black',
+    borderColor: 'black',
   },
   loginLabel: {
-    color: '#1a1205',
+    color: 'white',
     fontWeight: 'bold',
   },
   cancelButton: {
     backgroundColor: 'transparent',
-    borderColor: '#c9a84c',
+    borderColor: 'black',
   },
   cancelLabel: {
-    color: '#c9a84c',
+    color: 'black',
   },
   inputLabel: {
-    color: '#e8d5a3',
+    color: 'grey',
   },
   inputField: {
-    backgroundColor: '#1a1205',
-    borderColor: '#c9a84c',
-    color: '#e8d5a3',
+    backgroundColor: 'white',
+    borderColor: 'lightgray',
+    color: 'black',
   },
 });
 

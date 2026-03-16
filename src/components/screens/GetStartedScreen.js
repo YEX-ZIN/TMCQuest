@@ -10,7 +10,7 @@ const GetStartedScreen = ({navigation}) => {
   // View --------------------------------
   return (
     <View style={styles.screen}>
-      <StatusBar style='light' />
+      <StatusBar style='dark' />
       <View style={styles.container}>
 
         <View style={styles.logoFrame}>
@@ -40,7 +40,7 @@ const GetStartedScreen = ({navigation}) => {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#1a1205',
+    backgroundColor: 'white',
   },
   container: {
     flex: 1,
@@ -52,12 +52,12 @@ const styles = StyleSheet.create({
   logoFrame: {
     borderRadius: 20,
     borderWidth: 3,
-    borderColor: '#c9a84c',
+    borderColor: 'black',
     padding: 8,
-    backgroundColor: '#2a1f0a',
-    shadowColor: '#c9a84c',
+    backgroundColor: 'white',
+    shadowColor: 'black',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
+    shadowOpacity: 0.2,
     shadowRadius: 14,
     elevation: 12,
   },
@@ -73,35 +73,35 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 42,
     fontWeight: 'bold',
-    color: '#c9a84c',
+    color: 'black',
     letterSpacing: 2,
   },
   tagline: {
     fontSize: 15,
-    color: '#e8d5a3',
+    color: 'black',
     letterSpacing: 1,
   },
   subtitle: {
     fontSize: 15,
-    color: '#9e8c6a',
+    color: 'grey',
     textAlign: 'center',
     lineHeight: 22,
   },
   startButton: {
-    backgroundColor: '#c9a84c',
-    borderColor: '#a0802e',
+    backgroundColor: 'black',
+    borderColor: 'black',
     paddingHorizontal: 20,
     flex: 0,
     minWidth: 200,
   },
   startLabel: {
-    color: '#1a1205',
+    color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
   },
   signupText: {
     fontSize: 15,
-    color: '#c9a84c',
+    color: 'black',
     textDecorationLine: 'underline',
   },
 });
