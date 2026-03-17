@@ -5,6 +5,7 @@ import Screen from '../layout/Screen';
 import Form from '../UI/Form';
 import Icons from '../UI/Icons';
 import API from '../API/API';
+import useCurrentUser from '../store/useCurrentUser';
 
 const generateCode = () => Math.random().toString(36).substring(2, 8).toUpperCase();
 
@@ -32,7 +33,7 @@ const defaultEvent = {
   EventID: null,
   EventName: '',
   EventDescription: '',
-  EventOwnerID: 1,
+  EventOwnerID: null,
   EventIspublic: false,
   EventStart: '',
   EventFinish: '',
@@ -49,6 +50,7 @@ const CreateEventScreen = ({navigation}) => {
   const eventsEndpoint = 'https://mark0s.com/geoquest/v1/api/events?key=16gv8f';
   const now = new Date();
   const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000);
+  const [currentUser] = useCurrentUser();
   // State -------------------------------
   const [event, setEvent] = useState({
     ...defaultEvent,
@@ -86,9 +88,15 @@ const CreateEventScreen = ({navigation}) => {
 
     const eventToSave = {
       ...event,
+      EventOwnerID: currentUser?.UserID || event.EventOwnerID,
       EventStart: startDate.toISOString(),
       EventFinish: finishDate.toISOString(),
     };
+
+    if (!eventToSave.EventOwnerID) {
+      Alert.alert('Login Required', 'Log in before creating an event.');
+      return;
+    }
 
     const response = await API.post(eventsEndpoint, eventToSave);
     if (response.isSuccess) {

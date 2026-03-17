@@ -1,35 +1,95 @@
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import Form from '../UI/Form.js';
 import Icons from '../UI/Icons.js';
+import API from '../API/API.js';
+import useCurrentUser from '../store/useCurrentUser.js';
+
+const normaliseList = (result) => {
+  if (!result) return [];
+  if (Array.isArray(result)) return result;
+  if (Array.isArray(result.data)) return result.data;
+  if (Array.isArray(result.result)) return result.result;
+  return [];
+};
 
 const LoginScreen = ({navigation}) => {
   // Initialisations ---------------------
   // State -------------------------------
   const [credentials, setCredentials] = useState({email: '', password: ''});
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [, saveCurrentUser] = useCurrentUser();
   // Handlers ----------------------------
   const handleChange = (field, value) => setCredentials({...credentials, [field]: value});
 
-  const handleLogin = () => navigation.replace('Dashboard');
+  const handleLogin = async () => {
+    const username = credentials.email.trim();
+    const password = credentials.password;
+    if (!username || !password) {
+      Alert.alert('Missing Details', 'Enter your username and password.');
+      return;
+    }
+
+    setIsLoggingIn(true);
+    const response = await API.get('https://mark0s.com/geoquest/v1/api/users?key=16gv8f');
+    if (!response.isSuccess) {
+      setIsLoggingIn(false);
+      Alert.alert('Login Failed', response.message || 'Unable to reach the API right now.');
+      return;
+    }
+
+    const users = normaliseList(response.result);
+    const matchedUser = users.find((user) => {
+      const matchesUsername = (user.UserUsername || '').toLowerCase() === username.toLowerCase();
+      const matchesPassword = (user.UserPassword || '') === password;
+      return matchesUsername && matchesPassword;
+    });
+
+    if (!matchedUser) {
+      setIsLoggingIn(false);
+      Alert.alert('Login Failed', 'Invalid username or password.');
+      return;
+    }
+
+    await saveCurrentUser(matchedUser);
+    setIsLoggingIn(false);
+    navigation.replace('Dashboard');
+  };
 
   const handleCancel = () => navigation.replace('GetStarted');
+  const handleSignUp = () => navigation.navigate('SignUp');
   // View --------------------------------
   return (
     <View style={styles.screen}>
-      <StatusBar style='dark' />
+      <StatusBar style='light' />
       <View style={styles.container}>
 
-        <View style={styles.textBlock}>
-          <Text style={styles.title}>Welcome Back</Text>
-          <Text style={styles.subtitle}>Sign in to continue your quest</Text>
+        <View style={styles.heroCard}>
+          <View style={styles.heroGlowPrimary} />
+          <View style={styles.heroGlowSecondary} />
+
+          <View style={styles.brandPill}>
+            <Icons.Map color='white' size={18} />
+            <Text style={styles.brandPillText}>TMCQuest</Text>
+          </View>
+
+          <View style={styles.textBlock}>
+            <Text style={styles.title}>Welcome Back</Text>
+            <Text style={styles.subtitle}>Sign in to continue your next campus quest.</Text>
+          </View>
         </View>
 
         <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardTitle}>Account Login</Text>
+            <Text style={styles.cardSubtitle}>Use your TMCQuest username and password from the API dataset.</Text>
+          </View>
+
           <Form
             onSubmit={handleLogin}
             onCancel={handleCancel}
-            submitLabel="Login"
+            submitLabel={isLoggingIn ? 'Signing In...' : 'Login'}
             submitIcon={<Icons.Submit />}
             submitButtonStyle={styles.loginButton}
             submitLabelStyle={styles.loginLabel}
@@ -37,7 +97,7 @@ const LoginScreen = ({navigation}) => {
             cancelLabelStyle={styles.cancelLabel}
           >
             <Form.InputText
-              label="Email"
+              label="Username"
               value={credentials.email}
               onChange={(value) => handleChange('email', value)}
               labelStyle={styles.inputLabel}
@@ -52,6 +112,16 @@ const LoginScreen = ({navigation}) => {
               inputStyle={styles.inputField}
             />
           </Form>
+
+          <View style={styles.helperBlock}>
+            <Text style={styles.helperTitle}>Quick test account</Text>
+            <Text style={styles.helperText}>Username: aishaahmed</Text>
+            <Text style={styles.helperText}>Password: password</Text>
+          </View>
+
+          <Pressable onPress={handleSignUp}>
+            <Text style={styles.signUpLink}>Need an account? Create one</Text>
+          </Pressable>
         </View>
 
       </View>
@@ -62,58 +132,160 @@ const LoginScreen = ({navigation}) => {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: 'white',
+    backgroundColor: '#eaf1f8',
   },
   container: {
     flex: 1,
     justifyContent: 'center',
-    gap: 28,
-    paddingHorizontal: 30,
+    gap: 18,
+    paddingHorizontal: 22,
+    paddingVertical: 28,
+  },
+  heroCard: {
+    borderRadius: 26,
+    backgroundColor: '#0f172a',
+    paddingHorizontal: 22,
+    paddingTop: 26,
+    paddingBottom: 24,
+    gap: 18,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.2,
+    shadowRadius: 18,
+    elevation: 7,
+  },
+  heroGlowPrimary: {
+    position: 'absolute',
+    width: 170,
+    height: 170,
+    borderRadius: 85,
+    top: -48,
+    right: -40,
+    backgroundColor: '#2563eb',
+    opacity: 0.28,
+  },
+  heroGlowSecondary: {
+    position: 'absolute',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    bottom: -30,
+    left: -15,
+    backgroundColor: '#22d3ee',
+    opacity: 0.18,
+  },
+  brandPill: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: 999,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+  },
+  brandPillText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: 'white',
+    letterSpacing: 0.5,
   },
   textBlock: {
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 8,
   },
   title: {
-    fontSize: 32,
+    fontSize: 36,
     fontWeight: 'bold',
-    color: 'black',
-    letterSpacing: 2,
+    color: 'white',
+    letterSpacing: 1,
   },
   subtitle: {
     fontSize: 15,
-    color: 'grey',
-    textAlign: 'center',
+    color: '#cbd5e1',
+    lineHeight: 22,
   },
   card: {
     backgroundColor: 'white',
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: 'black',
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: '#dbe3ec',
     padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 14,
+    elevation: 3,
+    gap: 12,
+  },
+  cardHeader: {
+    gap: 4,
+  },
+  cardTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  cardSubtitle: {
+    fontSize: 14,
+    color: '#64748b',
+    lineHeight: 20,
   },
   loginButton: {
-    backgroundColor: 'black',
-    borderColor: 'black',
+    backgroundColor: '#0f172a',
+    borderColor: '#0f172a',
+    borderRadius: 12,
   },
   loginLabel: {
     color: 'white',
-    fontWeight: 'bold',
+    fontWeight: '700',
   },
   cancelButton: {
-    backgroundColor: 'transparent',
-    borderColor: 'black',
+    backgroundColor: '#f8fafc',
+    borderColor: '#cbd5e1',
+    borderRadius: 12,
   },
   cancelLabel: {
-    color: 'black',
+    color: '#334155',
+    fontWeight: '600',
   },
   inputLabel: {
-    color: 'grey',
+    color: '#475569',
+    fontWeight: '600',
   },
   inputField: {
-    backgroundColor: 'white',
-    borderColor: 'lightgray',
-    color: 'black',
+    backgroundColor: '#f8fafc',
+    borderColor: '#d7e0ea',
+    color: '#0f172a',
+    borderRadius: 12,
+  },
+  helperBlock: {
+    borderRadius: 16,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    padding: 14,
+    gap: 4,
+  },
+  helperTitle: {
+    fontSize: 13,
+    color: '#334155',
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  helperText: {
+    fontSize: 13,
+    color: '#64748b',
+  },
+  signUpLink: {
+    fontSize: 14,
+    color: '#0f172a',
+    fontWeight: '600',
+    textAlign: 'center',
+    textDecorationLine: 'underline',
   },
 });
 

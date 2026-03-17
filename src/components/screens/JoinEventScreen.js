@@ -4,6 +4,7 @@ import Screen from '../layout/Screen';
 import Form from '../UI/Form';
 import Icons from '../UI/Icons';
 import API from '../API/API';
+import useCurrentUser from '../store/useCurrentUser';
 
 const normaliseList = (result) => {
   if (!result) return [];
@@ -13,16 +14,24 @@ const normaliseList = (result) => {
   return [];
 };
 
+const normaliseJoinCode = (value) => value.trim().toUpperCase().replace(/^INVITE:\s*/, '').replace(/^#/, '');
+
 const JoinEventScreen = ({navigation}) => {
   // Initialisations ---------------------
   const eventsEndpoint = 'https://mark0s.com/geoquest/v1/api/events?key=16gv8f';
   const cachesByEvent = (eventID) => `https://mark0s.com/geoquest/v1/api/caches/events/${eventID}?key=16gv8f`;
   const playersEndpoint = 'https://mark0s.com/geoquest/v1/api/players?key=16gv8f';
+  const [currentUser] = useCurrentUser();
   // State -------------------------------
   const [code, setCode] = useState('');
   // Handlers ----------------------------
   const handleJoin = async () => {
-    const inviteCode = code.trim().toUpperCase();
+    if (!currentUser?.UserID) {
+      Alert.alert('Login Required', 'Log in before joining an event.');
+      return;
+    }
+
+    const inviteCode = normaliseJoinCode(code);
     if (!inviteCode) {
       Alert.alert('Missing Code', 'Enter an invite code to join an event.');
       return;
@@ -36,7 +45,7 @@ const JoinEventScreen = ({navigation}) => {
 
     const events = normaliseList(eventsResponse.result);
     const matchedEvent = events.find((event) => {
-      const eventInviteCode = (event.EventInviteCode || '').toString().trim().toUpperCase();
+      const eventInviteCode = ((event.EventInviteCode || event.EventID || event.EventId || event.id || '')).toString().trim().toUpperCase();
       const eventIDText = (event.EventID || event.EventId || event.id || '').toString().trim().toUpperCase();
       return eventInviteCode === inviteCode || eventIDText === inviteCode;
     });
@@ -53,11 +62,16 @@ const JoinEventScreen = ({navigation}) => {
         eventCaches = normaliseList(cachesResponse.result);
       }
 
-      // Best effort player record for now until auth/user context is wired.
-      await API.post(playersEndpoint, {
-        PlayerUserID: 1,
-        PlayerEventID: eventID,
-      });
+      const playersResponse = await API.get(playersEndpoint);
+      const existingPlayers = normaliseList(playersResponse.result);
+      const alreadyJoined = existingPlayers.some((player) => player.PlayerUserID === currentUser.UserID && player.PlayerEventID === eventID);
+
+      if (!alreadyJoined) {
+        await API.post(playersEndpoint, {
+          PlayerUserID: currentUser.UserID,
+          PlayerEventID: eventID,
+        });
+      }
     }
 
     const eventWithCaches = {
@@ -76,7 +90,7 @@ const JoinEventScreen = ({navigation}) => {
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>Join Event</Text>
-          <Text style={styles.subtitle}>Enter the invite code shared by the event owner.</Text>
+          <Text style={styles.subtitle}>Enter the quest code shown on the event screen.</Text>
         </View>
         <Form
           onSubmit={handleJoin}
@@ -85,7 +99,7 @@ const JoinEventScreen = ({navigation}) => {
           submitIcon={<Icons.Submit />}
         >
           <Form.InputText
-            label="Invite Code"
+            label="Quest Code"
             value={code}
             onChange={(value) => setCode(value.toUpperCase())}
           />

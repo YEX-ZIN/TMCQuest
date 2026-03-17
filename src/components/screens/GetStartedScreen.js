@@ -1,4 +1,4 @@
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Button } from '../UI/Button';
 import { StatusBar } from 'expo-status-bar';
 
@@ -7,6 +7,7 @@ const GetStartedScreen = ({navigation}) => {
   // State -------------------------------
   // Handlers ----------------------------
   const handleGetStarted = () => navigation.replace('Login');
+  const handleSignUp = () => navigation.navigate('SignUp');
   // View --------------------------------
   return (
     <View style={styles.screen}>
@@ -30,7 +31,9 @@ const GetStartedScreen = ({navigation}) => {
           styleLabel={styles.startLabel}
         />
 
-        <Text style={styles.signupText}>New adventurer? Sign Up</Text>
+        <Pressable onPress={handleSignUp}>
+          <Text style={styles.signupText}>New adventurer? Sign Up</Text>
+        </Pressable>
 
       </View>
     </View>

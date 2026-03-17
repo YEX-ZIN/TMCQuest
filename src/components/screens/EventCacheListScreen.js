@@ -5,16 +5,27 @@ import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Button } from '../UI/Button';
 import Icons from '../UI/Icons';
+import API from '../API/API';
+
+const normaliseList = (result) => {
+  if (!result) return [];
+  if (Array.isArray(result)) return result;
+  if (Array.isArray(result.data)) return result.data;
+  if (Array.isArray(result.result)) return result.result;
+  return [];
+};
 
 const EventCacheListScreen = ({navigation, route}) => {
   // Initialisations ---------------------
   const isHost = route.params?.isHost === true;
   // State -------------------------------
   const [event, setEvent] = useState(route.params.event);
+  const [cachesLoading, setCachesLoading] = useState(false);
 
   const eventStart = event.EventStart || event.EventStartTime || '';
   const eventFinish = event.EventFinish || event.EventEndTime || '';
   const eventCaches = event.EventCaches || [];
+  const inviteCode = event.EventInviteCode || String(event.EventID || '-');
   const parseDate = (value) => {
     const parsed = new Date(value);
     return Number.isNaN(parsed.getTime()) ? null : parsed;
@@ -58,6 +69,23 @@ const EventCacheListScreen = ({navigation, route}) => {
   const gotoLeaderboard = () => navigation.navigate('EventLeaderboardScreen', {event});
   const recenterMap = () => requestLocation();
   const selectCache = (cache) => setSelectedCache(cache);
+  const loadEventCaches = useCallback(async () => {
+    const eventID = event.EventID || event.EventId || event.id;
+    if (!eventID) return;
+
+    setCachesLoading(true);
+    const response = await API.get(`https://mark0s.com/geoquest/v1/api/caches/events/${eventID}?key=16gv8f`);
+    setCachesLoading(false);
+
+    if (!response.isSuccess) return;
+
+    setEvent((prev) => ({
+      ...prev,
+      EventCaches: normaliseList(response.result),
+      EventInviteCode: prev.EventInviteCode || String(eventID),
+    }));
+  }, [event.EventID, event.EventId, event.id]);
+
   const handleCacheAdded = useCallback((newCache) => {
     setEvent(prev => ({
       ...prev,
@@ -102,6 +130,7 @@ const EventCacheListScreen = ({navigation, route}) => {
   };
 
   useEffect(() => { requestLocation(); }, []);
+  useEffect(() => { loadEventCaches(); }, [loadEventCaches]);
   // View --------------------------------
   const defaultRegion = {
     latitude: 51.5074,
@@ -183,7 +212,7 @@ const EventCacheListScreen = ({navigation, route}) => {
           </View>
           <View style={styles.metaRow}>
             <View style={styles.metaPillSmall}>
-              <Text style={styles.codeValue}>Invite: {event.EventInviteCode || '-'}</Text>
+              <Text style={styles.codeValue}>Quest Code: {inviteCode}</Text>
             </View>
             <View style={styles.metaPillSmall}>
               <View style={styles.metaInline}>
@@ -204,6 +233,13 @@ const EventCacheListScreen = ({navigation, route}) => {
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size='small' color='white' />
           <Text style={styles.loadingText}>Locating...</Text>
+        </View>
+      ) : null}
+
+      {cachesLoading ? (
+        <View style={styles.cacheLoadingOverlay}>
+          <ActivityIndicator size='small' color='white' />
+          <Text style={styles.loadingText}>Loading caches...</Text>
         </View>
       ) : null}
 
@@ -350,6 +386,18 @@ const styles = StyleSheet.create({
   loadingOverlay: {
     position: 'absolute',
     top: 142,
+    left: 15,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: 999,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  cacheLoadingOverlay: {
+    position: 'absolute',
+    top: 184,
     left: 15,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
     borderRadius: 999,

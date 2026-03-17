@@ -3,6 +3,7 @@ import 'react-native-gesture-handler';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import GetStartedScreen from './src/components/screens/GetStartedScreen';
 import LoginScreen from './src/components/screens/LoginScreen';
+import SignUpScreen from './src/components/screens/SignUpScreen';
 import DashboardScreen from './src/components/screens/DashboardScreen';
 import CreateEventScreen from './src/components/screens/CreateEventScreen';
 import JoinEventScreen from './src/components/screens/JoinEventScreen';
@@ -19,8 +20,9 @@ export const App=()=> {
       <Stack.Navigator screenOptions={{headerShown: false}}>
         <Stack.Screen name='GetStarted' component={GetStartedScreen}/>
         <Stack.Screen name='Login' component={LoginScreen} options={{title: 'Login', headerStyle: {backgroundColor: 'black'}, headerTintColor: 'white'}}/>
+        <Stack.Screen name='SignUp' component={SignUpScreen} options={{headerShown: true, title: '', headerTransparent: true, headerTintColor: 'white', headerShadowVisible: false}}/>
         <Stack.Screen name='Dashboard' component={DashboardScreen}/>
-        <Stack.Screen name='ProfileScreen' component={ProfileScreen} options={{headerShown: true, title: 'Profile', headerStyle: {backgroundColor: 'black'}, headerTintColor: 'white'}}/>
+        <Stack.Screen name='ProfileScreen' component={ProfileScreen} options={{headerShown: true, title: 'Profile', headerTransparent: true, headerTintColor: 'white', headerShadowVisible: false}}/>
         <Stack.Screen name='CreateEventScreen' component={CreateEventScreen} options={{headerShown: true, title: 'Create Event', headerStyle: {backgroundColor: 'black'}, headerTintColor: 'white'}}/>
         <Stack.Screen name='JoinEventScreen' component={JoinEventScreen} options={{headerShown: true, title: 'Join Event', headerStyle: {backgroundColor: 'black'}, headerTintColor: 'white'}}/>
         <Stack.Screen

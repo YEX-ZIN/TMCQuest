@@ -1,14 +1,67 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Screen from '../layout/Screen';
 import Icons from '../UI/Icons';
+import API from '../API/API';
+
+const normaliseList = (result) => {
+  if (!result) return [];
+  if (Array.isArray(result)) return result;
+  if (Array.isArray(result.data)) return result.data;
+  if (Array.isArray(result.result)) return result.result;
+  return [];
+};
 
 const EventLeaderboardScreen = ({navigation, route}) => {
   // Initialisations ---------------------
   const {event} = route.params;
   // State -------------------------------
+  const [ranked, setRanked] = useState([]);
+  const [loading, setLoading] = useState(true);
   // Handlers ----------------------------
   // View --------------------------------
-  const ranked = [...(event.EventParticipants || [])].sort((a, b) => b.points - a.points);
+  useEffect(() => {
+    const loadLeaderboard = async () => {
+      const eventID = event.EventID || event.EventId || event.id;
+      if (!eventID) {
+        setRanked([]);
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      const [playersResponse, findsResponse] = await Promise.all([
+        API.get(`https://mark0s.com/geoquest/v1/api/players/events/${eventID}?key=16gv8f`),
+        API.get(`https://mark0s.com/geoquest/v1/api/finds/events/${eventID}?key=16gv8f`),
+      ]);
+
+      const players = normaliseList(playersResponse.result);
+      const finds = normaliseList(findsResponse.result);
+
+      const scoreByPlayer = finds.reduce((acc, find) => {
+        const playerID = find.FindPlayerID || find.FindPlayer?.PlayerID;
+        if (!playerID) return acc;
+        acc[playerID] = (acc[playerID] || 0) + (find.FindCache?.CachePoints || 0);
+        return acc;
+      }, {});
+
+      const rows = players
+        .map((player) => ({
+          PlayerID: player.PlayerID,
+          UserID: player.PlayerUserID,
+          UserName: player.PlayerUser
+            ? `${player.PlayerUser.UserFirstname || ''} ${player.PlayerUser.UserLastname || ''}`.trim() || player.PlayerUser.UserUsername || 'Player'
+            : 'Player',
+          points: scoreByPlayer[player.PlayerID] || 0,
+        }))
+        .sort((a, b) => b.points - a.points);
+
+      setRanked(rows);
+      setLoading(false);
+    };
+
+    loadLeaderboard();
+  }, [event]);
 
   const medalColour = (index) => {
     if (index === 0) return '#FFD700';
@@ -27,7 +80,11 @@ const EventLeaderboardScreen = ({navigation, route}) => {
         <Text style={styles.eventName}>{event.EventName}</Text>
       </View>
       <ScrollView showsVerticalScrollIndicator={false}>
-        {ranked.length === 0 ? (
+        {loading ? (
+          <View style={styles.loadingWrap}>
+            <ActivityIndicator size='small' color='black' />
+          </View>
+        ) : ranked.length === 0 ? (
           <Text style={styles.emptyText}>No participants yet.</Text>
         ) : (
           ranked.map((participant, index) => (
@@ -70,6 +127,10 @@ const styles = StyleSheet.create({
     color: 'grey',
     fontSize: 15,
     marginTop: 40,
+  },
+  loadingWrap: {
+    marginTop: 40,
+    alignItems: 'center',
   },
   row: {
     flexDirection: 'row',

@@ -1,37 +1,93 @@
 import { useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import Screen from '../layout/Screen';
 import API from '../API/API';
 import Icons from '../UI/Icons';
 import { Button } from '../UI/Button';
+import useCurrentUser from '../store/useCurrentUser';
 
 const fallbackUser = {
-  UserID: 1,
-  UserFirstname: 'GeoQuest',
+  UserID: null,
+  UserFirstname: 'TMCQuest',
   UserLastname: 'Player',
   UserUsername: 'player1',
   UserPhone: 'N/A',
   UserImageURL: '',
 };
 
+const readUserPayload = (result) => {
+  if (Array.isArray(result)) return result[0] || null;
+  if (Array.isArray(result?.data)) return result.data[0] || null;
+  return result || null;
+};
+
 const ProfileScreen = ({ navigation }) => {
+  const [currentUser, saveCurrentUser] = useCurrentUser();
+  const userID = currentUser?.UserID;
+  const userGetEndpoint = `https://mark0s.com/geoquest/v1/api/users/${userID}?key=16gv8f`;
+  const userPutEndpoint = `https://mark0s.com/geoquest/v1/api/users/${userID}?key=16gv8f`;
+
   const [user, setUser] = useState(fallbackUser);
+  const [draft, setDraft] = useState(fallbackUser);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     const loadUser = async () => {
-      const response = await API.get('https://mark0s.com/geoquest/v1/api/users/1?key=16gv8f');
+      if (!userID) return;
+      const response = await API.get(userGetEndpoint);
       if (!response.isSuccess) return;
 
-      const payload = Array.isArray(response.result)
-        ? response.result[0]
-        : (response.result?.data?.[0] || response.result);
+      const payload = readUserPayload(response.result);
+      if (!payload) return;
 
-      if (payload) setUser({ ...fallbackUser, ...payload });
+      const merged = { ...fallbackUser, ...payload };
+      setUser(merged);
+      setDraft(merged);
     };
 
     loadUser();
-  }, []);
+  }, [userGetEndpoint, userID]);
+
+  const handleDraftChange = (field, value) => setDraft(prev => ({ ...prev, [field]: value }));
+
+  const handleStartEdit = () => setIsEditing(true);
+
+  const handleCancelEdit = () => {
+    setDraft(user);
+    setIsEditing(false);
+  };
+
+  const handleSave = async () => {
+    if (!draft.UserFirstname.trim() || !draft.UserLastname.trim() || !draft.UserUsername.trim()) {
+      Alert.alert('Missing Details', 'First name, last name, and username are required.');
+      return;
+    }
+
+    setIsSaving(true);
+    const payload = {
+      ...user,
+      UserFirstname: draft.UserFirstname.trim(),
+      UserLastname: draft.UserLastname.trim(),
+      UserUsername: draft.UserUsername.trim(),
+      UserPhone: draft.UserPhone.trim(),
+    };
+
+    const response = await API.put(userPutEndpoint, payload);
+    setIsSaving(false);
+
+    if (!response.isSuccess) {
+      Alert.alert('Save Failed', response.message || 'Could not update profile right now.');
+      return;
+    }
+
+    setUser(payload);
+    setDraft(payload);
+    await saveCurrentUser(payload);
+    setIsEditing(false);
+    Alert.alert('Saved', 'Profile updated successfully.');
+  };
 
   const handleLogout = () => {
     Alert.alert('Logout', 'Are you sure you want to logout?', [
@@ -39,10 +95,15 @@ const ProfileScreen = ({ navigation }) => {
       {
         text: 'Logout',
         style: 'destructive',
-        onPress: () => navigation.reset({ index: 0, routes: [{ name: 'Login' }] }),
+        onPress: async () => {
+          await saveCurrentUser(null);
+          navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+        },
       },
     ]);
   };
+
+  const renderValue = (field, fallback = '-') => (isEditing ? draft[field] : (user[field] || fallback));
 
   return (
     <Screen>
@@ -57,15 +118,26 @@ const ProfileScreen = ({ navigation }) => {
           </View>
 
           <Text style={styles.name}>
-            {user.UserFirstname} {user.UserLastname}
+            {renderValue('UserFirstname', '')} {renderValue('UserLastname', '')}
           </Text>
           <View style={styles.usernameChip}>
-            <Text style={styles.username}>@{user.UserUsername || 'player'}</Text>
+            <Text style={styles.username}>@{renderValue('UserUsername', 'player')}</Text>
           </View>
         </View>
 
         <View style={styles.infoCard}>
-          <Text style={styles.sectionTitle}>Account Details</Text>
+          <View style={styles.sectionHeadRow}>
+            <Text style={styles.sectionTitle}>Account Details</Text>
+            {!isEditing ? (
+              <Button
+                label='Edit'
+                icon={<Icons.Edit />}
+                onClick={handleStartEdit}
+                styleButton={styles.editButton}
+                styleLabel={styles.editLabel}
+              />
+            ) : null}
+          </View>
 
           <View style={styles.infoRow}>
             <Text style={styles.label}>User ID</Text>
@@ -74,11 +146,93 @@ const ProfileScreen = ({ navigation }) => {
 
           <View style={styles.separator} />
 
-          <View style={styles.infoRow}>
+          <View style={styles.fieldBlock}>
+            <Text style={styles.label}>First Name</Text>
+            {isEditing ? (
+              <TextInput
+                value={draft.UserFirstname}
+                onChangeText={(value) => handleDraftChange('UserFirstname', value)}
+                style={styles.input}
+                placeholder='First name'
+                placeholderTextColor='#94a3b8'
+              />
+            ) : (
+              <Text style={styles.valueLeft}>{user.UserFirstname || '-'}</Text>
+            )}
+          </View>
+
+          <View style={styles.separator} />
+
+          <View style={styles.fieldBlock}>
+            <Text style={styles.label}>Last Name</Text>
+            {isEditing ? (
+              <TextInput
+                value={draft.UserLastname}
+                onChangeText={(value) => handleDraftChange('UserLastname', value)}
+                style={styles.input}
+                placeholder='Last name'
+                placeholderTextColor='#94a3b8'
+              />
+            ) : (
+              <Text style={styles.valueLeft}>{user.UserLastname || '-'}</Text>
+            )}
+          </View>
+
+          <View style={styles.separator} />
+
+          <View style={styles.fieldBlock}>
+            <Text style={styles.label}>Username</Text>
+            {isEditing ? (
+              <TextInput
+                value={draft.UserUsername}
+                onChangeText={(value) => handleDraftChange('UserUsername', value)}
+                style={styles.input}
+                placeholder='Username'
+                placeholderTextColor='#94a3b8'
+                autoCapitalize='none'
+              />
+            ) : (
+              <Text style={styles.valueLeft}>{user.UserUsername || '-'}</Text>
+            )}
+          </View>
+
+          <View style={styles.separator} />
+
+          <View style={styles.fieldBlock}>
             <Text style={styles.label}>Phone</Text>
-            <Text style={styles.value}>{user.UserPhone || 'N/A'}</Text>
+            {isEditing ? (
+              <TextInput
+                value={draft.UserPhone}
+                onChangeText={(value) => handleDraftChange('UserPhone', value)}
+                style={styles.input}
+                placeholder='Phone number'
+                placeholderTextColor='#94a3b8'
+                keyboardType='phone-pad'
+              />
+            ) : (
+              <Text style={styles.valueLeft}>{user.UserPhone || 'N/A'}</Text>
+            )}
           </View>
         </View>
+
+        {isEditing ? (
+          <View style={styles.actionRow}>
+            <Button
+              label='Cancel'
+              icon={<Icons.Close />}
+              onClick={handleCancelEdit}
+              styleButton={styles.cancelEditButton}
+              styleLabel={styles.cancelEditLabel}
+            />
+            <Button
+              label={isSaving ? 'Saving...' : 'Save'}
+              icon={<Icons.Submit />}
+              onClick={isSaving ? () => {} : handleSave}
+              styleButton={styles.saveButton}
+              styleLabel={styles.saveLabel}
+            />
+          </View>
+        ) : null}
 
         <Button
           label='Back to Dashboard'
@@ -103,7 +257,7 @@ const ProfileScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 20,
-    paddingTop: 18,
+    paddingTop: 110,
     paddingBottom: 28,
     gap: 12,
   },
@@ -185,19 +339,41 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 8,
   },
+  sectionHeadRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 2,
+    gap: 10,
+  },
   sectionTitle: {
     fontSize: 12,
     color: '#64748b',
     fontWeight: '700',
     letterSpacing: 1,
     textTransform: 'uppercase',
-    marginBottom: 2,
+  },
+  editButton: {
+    flex: 0,
+    minHeight: 34,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderColor: '#cbd5e1',
+    backgroundColor: '#f8fafc',
+  },
+  editLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0f172a',
   },
   infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     minHeight: 34,
+  },
+  fieldBlock: {
+    gap: 6,
   },
   separator: {
     height: 1,
@@ -214,6 +390,46 @@ const styles = StyleSheet.create({
     color: '#0f172a',
     maxWidth: '65%',
     textAlign: 'right',
+  },
+  valueLeft: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#0f172a',
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
+    color: '#0f172a',
+    backgroundColor: '#ffffff',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  cancelEditButton: {
+    backgroundColor: 'white',
+    borderColor: '#94a3b8',
+    borderWidth: 1.3,
+    borderRadius: 12,
+    minHeight: 48,
+  },
+  cancelEditLabel: {
+    color: '#334155',
+    fontWeight: '700',
+  },
+  saveButton: {
+    backgroundColor: '#0f172a',
+    borderColor: '#0f172a',
+    borderRadius: 12,
+    minHeight: 48,
+  },
+  saveLabel: {
+    color: 'white',
+    fontWeight: '700',
   },
   backButton: {
     width: '100%',
