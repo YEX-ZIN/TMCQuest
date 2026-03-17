@@ -16,6 +16,7 @@ const Clock = ({size = 14, color = '#333333'}) => <MaterialIcons name='schedule'
 const CacheBox = ({size = 14, color = '#222222'}) => <MaterialIcons name='inventory-2' size={size} color={color} />;
 const Map = ({size = 22, color = 'black'}) => <MaterialIcons name='map' size={size} color={color} />;
 const Key = ({size = 22, color = 'black'}) => <MaterialIcons name='vpn-key' size={size} color={color} />;
+const Profile = ({size = 22, color = 'black'}) => <MaterialIcons name='account-circle' size={size} color={color} />;
 
 // Compose
 Icons.Add = Add;
@@ -32,5 +33,6 @@ Icons.Clock = Clock;
 Icons.CacheBox = CacheBox;
 Icons.Map = Map;
 Icons.Key = Key;
+Icons.Profile = Profile;
 
 export default Icons;

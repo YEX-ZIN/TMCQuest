@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, ScrollView } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View, ScrollView } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Button } from '../UI/Button';
 import Icons from '../UI/Icons';
@@ -9,6 +9,23 @@ const DashboardScreen = ({navigation}) => {
   // Handlers ----------------------------
   const handleCreateEvent = () => navigation.navigate('CreateEventScreen');
   const handleJoinEvent = () => navigation.navigate('JoinEventScreen');
+  const handleProfile = () => {
+    Alert.alert('Account', 'Choose an action', [
+      {
+        text: 'Profile',
+        onPress: () => navigation.navigate('ProfileScreen'),
+      },
+      {
+        text: 'Logout',
+        style: 'destructive',
+        onPress: () => navigation.reset({ index: 0, routes: [{ name: 'Login' }] }),
+      },
+      {
+        text: 'Cancel',
+        style: 'cancel',
+      },
+    ]);
+  };
   // View --------------------------------
   return (
     <View style={styles.screen}>
@@ -17,6 +34,12 @@ const DashboardScreen = ({navigation}) => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        <View style={styles.topBar}>
+          <Pressable style={styles.profileIconWrap} onPress={handleProfile}>
+            <Icons.Profile size={28} color='black' />
+          </Pressable>
+        </View>
+
         <View style={styles.header}>
           <Text style={styles.title}>GeoQuest</Text>
           <Text style={styles.subtitle}>Choose your adventure</Text>
@@ -72,6 +95,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     justifyContent: 'center',
     paddingVertical: 28,
+  },
+  topBar: {
+    width: '100%',
+    alignItems: 'flex-end',
+    marginBottom: 8,
+  },
+  profileIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: '#e1e1e1',
+    backgroundColor: '#f7f7f7',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   header: {
     alignItems: 'center',

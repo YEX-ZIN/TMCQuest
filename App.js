@@ -9,6 +9,7 @@ import JoinEventScreen from './src/components/screens/JoinEventScreen';
 import EventCacheListScreen from './src/components/screens/EventCacheListScreen';
 import EventLeaderboardScreen from './src/components/screens/EventLeaderboardScreen';
 import AddHuntLocationScreen from './src/components/screens/AddHuntLocationScreen';
+import ProfileScreen from './src/components/screens/ProfileScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -19,6 +20,7 @@ export const App=()=> {
         <Stack.Screen name='GetStarted' component={GetStartedScreen}/>
         <Stack.Screen name='Login' component={LoginScreen} options={{title: 'Login', headerStyle: {backgroundColor: 'black'}, headerTintColor: 'white'}}/>
         <Stack.Screen name='Dashboard' component={DashboardScreen}/>
+        <Stack.Screen name='ProfileScreen' component={ProfileScreen} options={{headerShown: true, title: 'Profile', headerStyle: {backgroundColor: 'black'}, headerTintColor: 'white'}}/>
         <Stack.Screen name='CreateEventScreen' component={CreateEventScreen} options={{headerShown: true, title: 'Create Event', headerStyle: {backgroundColor: 'black'}, headerTintColor: 'white'}}/>
         <Stack.Screen name='JoinEventScreen' component={JoinEventScreen} options={{headerShown: true, title: 'Join Event', headerStyle: {backgroundColor: 'black'}, headerTintColor: 'white'}}/>
         <Stack.Screen

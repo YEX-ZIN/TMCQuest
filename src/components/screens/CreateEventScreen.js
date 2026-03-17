@@ -93,9 +93,11 @@ const CreateEventScreen = ({navigation}) => {
     const response = await API.post(eventsEndpoint, eventToSave);
     if (response.isSuccess) {
       const createdPayload = normaliseCreatedEvent(response.result);
+      const createdEventID = createdPayload.EventID || eventToSave.EventID;
       const createdEvent = {
         ...eventToSave,
         ...createdPayload,
+        EventInviteCode: createdPayload.EventInviteCode || String(createdEventID),
       };
       navigation.replace('EventCacheListScreen', {event: createdEvent, isHost: true});
     } else {
