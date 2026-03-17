@@ -86,48 +86,104 @@ const JoinEventScreen = ({navigation}) => {
   const handleCancel = () => navigation.goBack();
   // View --------------------------------
   return (
-    <Screen>
+    <Screen style={styles.screen} statusBarStyle='light'>
       <View style={styles.container}>
-        <View style={styles.header}>
+        <View style={styles.headerCard}>
           <Text style={styles.title}>Join Event</Text>
           <Text style={styles.subtitle}>Enter the quest code shown on the event screen.</Text>
         </View>
-        <Form
-          onSubmit={handleJoin}
-          onCancel={handleCancel}
-          submitLabel="Join"
-          submitIcon={<Icons.Submit />}
-        >
-          <Form.InputText
-            label="Quest Code"
-            value={code}
-            onChange={(value) => setCode(value.toUpperCase())}
-          />
-        </Form>
+
+        <View style={styles.formCard}>
+          <Form
+            onSubmit={handleJoin}
+            onCancel={handleCancel}
+            submitLabel="Join"
+            submitIcon={<Icons.Submit />}
+            submitButtonStyle={styles.submitButton}
+            submitLabelStyle={styles.submitLabel}
+            cancelButtonStyle={styles.cancelButton}
+            cancelLabelStyle={styles.cancelLabel}
+          >
+            <Form.InputText
+              label="Quest Code"
+              value={code}
+              onChange={(value) => setCode(value.toUpperCase())}
+              labelStyle={styles.inputLabel}
+              inputStyle={styles.inputField}
+            />
+          </Form>
+        </View>
       </View>
     </Screen>
   );
 };
 
 const styles = StyleSheet.create({
+  screen: {
+    backgroundColor: '#0d0a04',
+  },
   container: {
     flex: 1,
     justifyContent: 'center',
-    gap: 24,
+    gap: 14,
+    paddingTop: 70,
   },
-  header: {
+  headerCard: {
+    borderRadius: 18,
+    backgroundColor: '#261a0a',
+    borderWidth: 1,
+    borderColor: '#c4903a',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
+  },
+  formCard: {
+    borderRadius: 16,
+    backgroundColor: 'rgba(246,231,194,0.95)',
+    borderWidth: 1.5,
+    borderColor: '#c4903a',
+    padding: 10,
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: 'black',
+    color: '#f0d080',
   },
   subtitle: {
     fontSize: 15,
-    color: 'grey',
+    color: '#d8bc87',
     textAlign: 'center',
+  },
+  inputLabel: {
+    color: '#5c3b10',
+    fontWeight: '600',
+  },
+  inputField: {
+    backgroundColor: '#f8f1df',
+    borderColor: '#d8be86',
+    color: '#2f1b07',
+    borderRadius: 10,
+  },
+  submitButton: {
+    backgroundColor: '#c4903a',
+    borderColor: '#f0d080',
+    borderWidth: 1,
+    borderRadius: 10,
+  },
+  submitLabel: {
+    color: '#1a1105',
+    fontWeight: '700',
+  },
+  cancelButton: {
+    backgroundColor: '#f6ead0',
+    borderColor: '#8a6224',
+    borderWidth: 1,
+    borderRadius: 10,
+  },
+  cancelLabel: {
+    color: '#5c3b10',
+    fontWeight: '600',
   },
 });
 

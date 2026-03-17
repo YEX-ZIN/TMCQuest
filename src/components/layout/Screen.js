@@ -1,15 +1,15 @@
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, View } from 'react-native';
 
-const Screen = ({ children }) => {
+const Screen = ({ children, style, statusBarStyle = 'light' }) => {
   // Initialisations ---------------------
   // State -------------------------------
   // Handlers ----------------------------
   // View --------------------------------
   return (
-    <View style={styles.screen}>
+    <View style={[styles.screen, style]}>
       {children}
-      <StatusBar style='light' />
+      <StatusBar style={statusBarStyle} />
     </View>
   );
 };

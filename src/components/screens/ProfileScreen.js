@@ -106,7 +106,7 @@ const ProfileScreen = ({ navigation }) => {
   const renderValue = (field, fallback = '-') => (isEditing ? draft[field] : (user[field] || fallback));
 
   return (
-    <Screen>
+    <Screen style={styles.screen} statusBarStyle='light'>
       <StatusBar style='light' />
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.heroCard}>
@@ -255,6 +255,9 @@ const ProfileScreen = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
+  screen: {
+    backgroundColor: '#0d0a04',
+  },
   container: {
     paddingHorizontal: 20,
     paddingTop: 110,
@@ -264,9 +267,9 @@ const styles = StyleSheet.create({
   heroCard: {
     width: '100%',
     borderRadius: 22,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#261a0a',
     borderWidth: 1,
-    borderColor: '#1f2a44',
+    borderColor: '#c4903a',
     paddingTop: 24,
     paddingBottom: 18,
     paddingHorizontal: 16,
@@ -285,8 +288,8 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: '#1d4ed8',
-    opacity: 0.2,
+    backgroundColor: '#c4903a',
+    opacity: 0.25,
   },
   heroOrbTwo: {
     position: 'absolute',
@@ -295,16 +298,16 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: '#38bdf8',
-    opacity: 0.18,
+    backgroundColor: '#5a3a12',
+    opacity: 0.35,
   },
   avatarWrap: {
     width: 114,
     height: 114,
     borderRadius: 57,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#f6ead0',
     borderWidth: 3,
-    borderColor: '#e2e8f0',
+    borderColor: '#d7b574',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
@@ -312,7 +315,7 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 30,
     fontWeight: '700',
-    color: 'white',
+    color: '#f0d080',
     textAlign: 'center',
     letterSpacing: 0.4,
   },
@@ -321,21 +324,21 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingVertical: 6,
     paddingHorizontal: 12,
-    backgroundColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: 'rgba(196,144,58,0.2)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.25)',
+    borderColor: '#c4903a',
   },
   username: {
     fontSize: 14,
-    color: '#e2e8f0',
+    color: '#f6e4bc',
     fontWeight: '600',
   },
   infoCard: {
     width: '100%',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
-    backgroundColor: 'white',
+    borderColor: '#c4903a',
+    backgroundColor: 'rgba(246,231,194,0.95)',
     padding: 16,
     gap: 8,
   },
@@ -348,7 +351,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 12,
-    color: '#64748b',
+    color: '#7a5217',
     fontWeight: '700',
     letterSpacing: 1,
     textTransform: 'uppercase',
@@ -358,13 +361,13 @@ const styles = StyleSheet.create({
     minHeight: 34,
     paddingHorizontal: 10,
     borderRadius: 8,
-    borderColor: '#cbd5e1',
-    backgroundColor: '#f8fafc',
+    borderColor: '#caa45a',
+    backgroundColor: '#f6ead0',
   },
   editLabel: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#0f172a',
+    color: '#5c3b10',
   },
   infoRow: {
     flexDirection: 'row',
@@ -377,76 +380,78 @@ const styles = StyleSheet.create({
   },
   separator: {
     height: 1,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#d6b573',
   },
   label: {
     fontSize: 14,
-    color: '#475569',
+    color: '#6b4e2a',
     fontWeight: '500',
   },
   value: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#0f172a',
+    color: '#2f1b07',
     maxWidth: '65%',
     textAlign: 'right',
   },
   valueLeft: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#0f172a',
+    color: '#2f1b07',
   },
   input: {
     borderWidth: 1,
-    borderColor: '#cbd5e1',
+    borderColor: '#d0ab66',
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 15,
-    color: '#0f172a',
-    backgroundColor: '#ffffff',
+    color: '#2f1b07',
+    backgroundColor: '#f8f1df',
   },
   actionRow: {
     flexDirection: 'row',
     gap: 10,
   },
   cancelEditButton: {
-    backgroundColor: 'white',
-    borderColor: '#94a3b8',
+    backgroundColor: '#f6ead0',
+    borderColor: '#caa45a',
     borderWidth: 1.3,
     borderRadius: 12,
     minHeight: 48,
   },
   cancelEditLabel: {
-    color: '#334155',
+    color: '#5c3b10',
     fontWeight: '700',
   },
   saveButton: {
-    backgroundColor: '#0f172a',
-    borderColor: '#0f172a',
+    backgroundColor: '#c4903a',
+    borderColor: '#f0d080',
+    borderWidth: 1,
     borderRadius: 12,
     minHeight: 48,
   },
   saveLabel: {
-    color: 'white',
+    color: '#1a1105',
     fontWeight: '700',
   },
   backButton: {
     width: '100%',
-    backgroundColor: 'white',
-    borderColor: '#0f172a',
+    backgroundColor: '#f6ead0',
+    borderColor: '#8a6224',
     borderWidth: 1.5,
     borderRadius: 12,
     minHeight: 50,
   },
   backLabel: {
-    color: '#0f172a',
+    color: '#5c3b10',
     fontWeight: '700',
   },
   logoutButton: {
     width: '100%',
-    backgroundColor: '#b91c1c',
-    borderColor: '#b91c1c',
+    backgroundColor: '#7f1d1d',
+    borderColor: '#b45309',
+    borderWidth: 1,
     borderRadius: 12,
     minHeight: 50,
   },

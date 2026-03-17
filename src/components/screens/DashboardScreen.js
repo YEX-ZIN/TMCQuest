@@ -138,14 +138,14 @@ const DashboardScreen = ({navigation}) => {
   // View --------------------------------
   return (
     <View style={styles.screen}>
-      <StatusBar style='dark' />
+      <StatusBar style='light' />
       <ScrollView 
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.topBar}>
           <Pressable style={styles.profileIconWrap} onPress={handleProfile}>
-            <Icons.Profile size={28} color='black' />
+            <Icons.Profile size={28} color='#f6e4bc' />
           </Pressable>
         </View>
 
@@ -195,13 +195,13 @@ const DashboardScreen = ({navigation}) => {
           <View style={styles.questHeadRow}>
             <Text style={styles.questHeading}>My Quests</Text>
             <Pressable onPress={loadQuests} hitSlop={8}>
-              <Icons.Submit size={16} color='#64748b' />
+              <Icons.Submit size={16} color='#d4a843' />
             </Pressable>
           </View>
 
           {questsLoading ? (
             <View style={styles.questEmpty}>
-              <ActivityIndicator size='small' color='black' />
+              <ActivityIndicator size='small' color='#d4a843' />
             </View>
           ) : quests.length === 0 ? (
             <View style={styles.questEmpty}>
@@ -246,7 +246,7 @@ const DashboardScreen = ({navigation}) => {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: 'white',
+    backgroundColor: '#0d0a04',
   },
   scrollContent: {
     flexGrow: 1,
@@ -265,8 +265,8 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 22,
     borderWidth: 1,
-    borderColor: '#e1e1e1',
-    backgroundColor: '#f7f7f7',
+    borderColor: '#c4903a',
+    backgroundColor: '#261a0a',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -278,18 +278,18 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 38,
     fontWeight: 'bold',
-    color: 'black',
+    color: '#f0d080',
     letterSpacing: 1,
   },
   subtitle: {
     fontSize: 16,
-    color: 'grey',
+    color: '#b89a68',
   },
   cardsContainer: {
     gap: 12,
   },
   card: {
-    backgroundColor: 'white',
+    backgroundColor: 'rgba(246,231,194,0.95)',
     borderRadius: 14,
     padding: 20,
     gap: 10,
@@ -300,13 +300,13 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 2,
     borderWidth: 1,
-    borderColor: '#e6e6e6',
+    borderColor: '#c4903a',
   },
   cardIcon: {
     width: 44,
     height: 44,
     borderRadius: 10,
-    backgroundColor: '#f4f4f4',
+    backgroundColor: '#f3e4c6',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 2,
@@ -314,30 +314,31 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: 'black',
+    color: '#2f1b07',
   },
   cardDesc: {
     fontSize: 14,
-    color: 'grey',
+    color: '#6b4e2a',
     lineHeight: 20,
     marginBottom: 2,
   },
   primaryButton: {
-    backgroundColor: 'black',
-    borderColor: 'black',
+    backgroundColor: '#c4903a',
+    borderColor: '#f0d080',
+    borderWidth: 1,
     flex: 0,
     marginTop: 6,
     borderRadius: 10,
     minHeight: 50,
   },
   primaryLabel: {
-    color: 'white',
+    color: '#1a1105',
     fontWeight: '600',
     fontSize: 15,
   },
   secondaryButton: {
-    backgroundColor: 'white',
-    borderColor: 'black',
+    backgroundColor: '#f6ead0',
+    borderColor: '#8a6224',
     borderWidth: 1.5,
     flex: 0,
     marginTop: 6,
@@ -345,7 +346,7 @@ const styles = StyleSheet.create({
     minHeight: 50,
   },
   secondaryLabel: {
-    color: 'black',
+    color: '#5c3b10',
     fontWeight: '600',
     fontSize: 15,
   },
@@ -364,19 +365,19 @@ const styles = StyleSheet.create({
   questHeading: {
     fontSize: 18,
     fontWeight: '700',
-    color: 'black',
+    color: '#f0d080',
   },
   questEmpty: {
     paddingVertical: 18,
     alignItems: 'center',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#f0f0f0',
-    backgroundColor: '#fafafa',
+    borderColor: '#8a6224',
+    backgroundColor: '#261a0a',
   },
   questEmptyText: {
     fontSize: 13,
-    color: '#94a3b8',
+    color: '#b89a68',
     textAlign: 'center',
   },
   questCard: {
@@ -385,8 +386,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e8e8e8',
-    backgroundColor: 'white',
+    borderColor: '#c4903a',
+    backgroundColor: 'rgba(246,231,194,0.95)',
     padding: 14,
     gap: 10,
     shadowColor: '#000',
@@ -396,7 +397,7 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   questCardPressed: {
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#f1deb5',
   },
   questCardLeft: {
     flex: 1,
@@ -405,11 +406,11 @@ const styles = StyleSheet.create({
   questName: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#0f172a',
+    color: '#2f1b07',
   },
   questDate: {
     fontSize: 12,
-    color: '#94a3b8',
+    color: '#6b4e2a',
   },
   questCardRight: {
     alignItems: 'flex-end',
@@ -422,7 +423,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingVertical: 3,
     paddingHorizontal: 8,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#5a3a12',
   },
   scoreText: {
     fontSize: 11,
@@ -435,24 +436,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   hostBadge: {
-    backgroundColor: '#eff6ff',
+    backgroundColor: '#f6e8c9',
     borderWidth: 1,
-    borderColor: '#bfdbfe',
+    borderColor: '#d7b574',
   },
   playerBadge: {
-    backgroundColor: '#f0fdf4',
+    backgroundColor: '#f3dfb3',
     borderWidth: 1,
-    borderColor: '#bbf7d0',
+    borderColor: '#d2ac63',
   },
   roleText: {
     fontSize: 11,
     fontWeight: '700',
   },
   hostText: {
-    color: '#1d4ed8',
+    color: '#5c3b10',
   },
   playerText: {
-    color: '#16a34a',
+    color: '#7a5217',
   },
 });
 
