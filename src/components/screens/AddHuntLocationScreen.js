@@ -40,7 +40,7 @@ const defaultCache = {
 
 const AddHuntLocationScreen = ({navigation, route}) => {
   // Initialisations ---------------------
-  const { event, coordinate, isHost = false } = route.params;
+  const { event, coordinate, isHost = false, onCacheAdded } = route.params;
   const cachesEndpoint = 'https://mark0s.com/geoquest/v1/api/caches?key=16gv8f';
   // State -------------------------------
   const [cache, setCache] = useState({
@@ -83,13 +83,8 @@ const AddHuntLocationScreen = ({navigation, route}) => {
       ...payload,
     };
 
-    const eventCaches = event.EventCaches || [];
-    const updatedEvent = {
-      ...event,
-      EventCaches: [...eventCaches, createdCache],
-    };
-
-    navigation.replace('EventCacheListScreen', {event: updatedEvent, isHost});
+    if (onCacheAdded) onCacheAdded(createdCache);
+    navigation.goBack();
   };
 
   const handleCancel = () => navigation.goBack();

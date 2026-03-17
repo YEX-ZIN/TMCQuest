@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Platform, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import MapView, { Marker } from 'react-native-maps';
@@ -8,8 +8,10 @@ import Icons from '../UI/Icons';
 
 const EventCacheListScreen = ({navigation, route}) => {
   // Initialisations ---------------------
-  const {event} = route.params;
   const isHost = route.params?.isHost === true;
+  // State -------------------------------
+  const [event, setEvent] = useState(route.params.event);
+
   const eventStart = event.EventStart || event.EventStartTime || '';
   const eventFinish = event.EventFinish || event.EventEndTime || '';
   const eventCaches = event.EventCaches || [];
@@ -56,10 +58,17 @@ const EventCacheListScreen = ({navigation, route}) => {
   const gotoLeaderboard = () => navigation.navigate('EventLeaderboardScreen', {event});
   const recenterMap = () => requestLocation();
   const selectCache = (cache) => setSelectedCache(cache);
+  const handleCacheAdded = useCallback((newCache) => {
+    setEvent(prev => ({
+      ...prev,
+      EventCaches: [...(prev.EventCaches || []), newCache],
+    }));
+  }, []);
+
   const handleMapLongPress = (mapEvent) => {
     if (!isHost) return;
     const coordinate = mapEvent.nativeEvent.coordinate;
-    navigation.navigate('AddHuntLocationScreen', {event, coordinate, isHost});
+    navigation.navigate('AddHuntLocationScreen', {event, coordinate, isHost, onCacheAdded: handleCacheAdded});
   };
 
   const gotoSelectedCache = async () => {
