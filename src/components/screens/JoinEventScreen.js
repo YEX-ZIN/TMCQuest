@@ -14,7 +14,7 @@ const JoinEventScreen = ({navigation}) => {
   const handleJoin = () => {
     const event = findEventByCode(code);
     if (event) {
-      navigation.replace('EventCacheListScreen', {event});
+      navigation.replace('EventCacheListScreen', {event, isHost: false});
     } else {
       Alert.alert('Not Found', 'No event found with that invite code. Please check and try again.');
     }

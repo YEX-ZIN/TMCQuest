@@ -97,7 +97,7 @@ const CreateEventScreen = ({navigation}) => {
         ...eventToSave,
         ...createdPayload,
       };
-      navigation.replace('EventCacheListScreen', {event: createdEvent});
+      navigation.replace('EventCacheListScreen', {event: createdEvent, isHost: true});
     } else {
       Alert.alert('Create Event Failed', response.message);
     }

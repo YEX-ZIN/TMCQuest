@@ -8,6 +8,7 @@ import CreateEventScreen from './src/components/screens/CreateEventScreen';
 import JoinEventScreen from './src/components/screens/JoinEventScreen';
 import EventCacheListScreen from './src/components/screens/EventCacheListScreen';
 import EventLeaderboardScreen from './src/components/screens/EventLeaderboardScreen';
+import AddHuntLocationScreen from './src/components/screens/AddHuntLocationScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -31,6 +32,7 @@ export const App=()=> {
             headerShadowVisible: false,
           }}
         />
+        <Stack.Screen name='AddHuntLocationScreen' component={AddHuntLocationScreen} options={{headerShown: true, title: 'Add Hunt Location', headerStyle: {backgroundColor: 'black'}, headerTintColor: 'white'}}/>
         <Stack.Screen name='EventLeaderboardScreen' component={EventLeaderboardScreen} options={{headerShown: true, title: 'Leaderboard', headerStyle: {backgroundColor: 'black'}, headerTintColor: 'white'}}/>
       </Stack.Navigator>
     </NavigationContainer>

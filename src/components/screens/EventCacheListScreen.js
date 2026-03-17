@@ -9,6 +9,7 @@ import Icons from '../UI/Icons';
 const EventCacheListScreen = ({navigation, route}) => {
   // Initialisations ---------------------
   const {event} = route.params;
+  const isHost = route.params?.isHost === true;
   const eventStart = event.EventStart || event.EventStartTime || '';
   const eventFinish = event.EventFinish || event.EventEndTime || '';
   const eventCaches = event.EventCaches || [];
@@ -55,6 +56,11 @@ const EventCacheListScreen = ({navigation, route}) => {
   const gotoLeaderboard = () => navigation.navigate('EventLeaderboardScreen', {event});
   const recenterMap = () => requestLocation();
   const selectCache = (cache) => setSelectedCache(cache);
+  const handleMapLongPress = (mapEvent) => {
+    if (!isHost) return;
+    const coordinate = mapEvent.nativeEvent.coordinate;
+    navigation.navigate('AddHuntLocationScreen', {event, coordinate, isHost});
+  };
 
   const gotoSelectedCache = async () => {
     if (!selectedCache) {
@@ -132,6 +138,7 @@ const EventCacheListScreen = ({navigation, route}) => {
         showsUserLocation={true}
         showsCompass={false}
         toolbarEnabled={false}
+        onLongPress={handleMapLongPress}
       >
         {eventCaches.map((cache) => (
           <Marker
@@ -176,6 +183,11 @@ const EventCacheListScreen = ({navigation, route}) => {
               </View>
             </View>
           </View>
+          {isHost && (
+            <View style={styles.metaPill}>
+              <Text style={styles.hostHintText}>Host mode: long-press the map to add a hunt location.</Text>
+            </View>
+          )}
         </View>
       </View>
 
@@ -319,6 +331,11 @@ const styles = StyleSheet.create({
   cacheCount: {
     fontSize: 12,
     color: '#222222',
+    fontWeight: '600',
+  },
+  hostHintText: {
+    fontSize: 11,
+    color: '#333333',
     fontWeight: '600',
   },
   loadingOverlay: {
