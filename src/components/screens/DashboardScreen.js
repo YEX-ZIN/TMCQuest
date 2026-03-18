@@ -7,9 +7,6 @@ import Icons from '../UI/Icons';
 import API from '../API/API';
 import useCurrentUser from '../store/useCurrentUser';
 
-const BASE = 'https://mark0s.com/geoquest/v1/api';
-const KEY = '16gv8f';
-
 const normaliseList = (r) => {
   if (!r) return [];
   if (Array.isArray(r)) return r;
@@ -34,9 +31,9 @@ const DashboardScreen = ({navigation}) => {
 
     setQuestsLoading(true);
     const [eventsRes, playersRes, findsRes] = await Promise.all([
-      API.get(`${BASE}/events?key=${KEY}`),
-      API.get(`${BASE}/players?key=${KEY}`),
-      API.get(`${BASE}/finds?key=${KEY}`),
+      API.get(API.geoQuest.events()),
+      API.get(API.geoQuest.players()),
+      API.get(API.geoQuest.finds()),
     ]);
 
     const allEvents = normaliseList(eventsRes.result);
@@ -99,8 +96,8 @@ const DashboardScreen = ({navigation}) => {
         style: 'destructive',
         onPress: async () => {
           const endpoint = isHost
-            ? `${BASE}/events/${quest.EventID}?key=${KEY}`
-            : `${BASE}/players/${quest._playerID}?key=${KEY}`;
+            ? API.geoQuest.events(quest.EventID)
+            : API.geoQuest.players(quest._playerID);
           const response = await API.delete(endpoint);
           if (!response.isSuccess) {
             Alert.alert('Failed', response.message || 'Could not complete the action.');
@@ -115,6 +112,7 @@ const DashboardScreen = ({navigation}) => {
   // Handlers ----------------------------
   const handleCreateEvent = () => navigation.navigate('CreateEventScreen');
   const handleJoinEvent = () => navigation.navigate('JoinEventScreen');
+  const handlePublicWorld = () => navigation.navigate('PublicCachesScreen');
   const handleProfile = () => {
     Alert.alert('Account', 'Choose an action', [
       {
@@ -186,6 +184,23 @@ const DashboardScreen = ({navigation}) => {
               onClick={handleJoinEvent}
               styleButton={styles.secondaryButton}
               styleLabel={styles.secondaryLabel}
+            />
+          </View>
+
+          <View style={styles.card}>
+            <View style={styles.cardIcon}>
+              <Icons.Map />
+            </View>
+            <Text style={styles.cardTitle}>Public World</Text>
+            <Text style={styles.cardDesc}>
+              View all public caches on a shared map, navigate to them, and open the event to log discoveries.
+            </Text>
+            <Button
+              label="Explore Public Caches"
+              icon={<Icons.Map color='#5c3b10' />}
+              onClick={handlePublicWorld}
+              styleButton={styles.tertiaryButton}
+              styleLabel={styles.tertiaryLabel}
             />
           </View>
         </View>
@@ -349,6 +364,20 @@ const styles = StyleSheet.create({
     color: '#5c3b10',
     fontWeight: '600',
     fontSize: 15,
+  },
+  tertiaryButton: {
+    backgroundColor: '#ecd9aa',
+    borderColor: '#8a6224',
+    borderWidth: 1.5,
+    flex: 0,
+    marginTop: 6,
+    borderRadius: 10,
+    minHeight: 50,
+  },
+  tertiaryLabel: {
+    color: '#5c3b10',
+    fontWeight: '700',
+    fontSize: 14,
   },
 
   // --- Quest list ---

@@ -42,7 +42,7 @@ const SignUpScreen = ({navigation}) => {
 
     setIsSubmitting(true);
 
-    const usersResponse = await API.get('https://mark0s.com/geoquest/v1/api/users?key=16gv8f');
+    const usersResponse = await API.get(API.geoQuest.users());
     if (!usersResponse.isSuccess) {
       setIsSubmitting(false);
       Alert.alert('Sign Up Failed', usersResponse.message || 'Could not reach the API.');
@@ -69,7 +69,7 @@ const SignUpScreen = ({navigation}) => {
       UserImageURL: form.UserImageURL.trim(),
     };
 
-    const createResponse = await API.post('https://mark0s.com/geoquest/v1/api/users?key=16gv8f', newUser);
+    const createResponse = await API.post(API.geoQuest.users(), newUser);
     if (!createResponse.isSuccess) {
       setIsSubmitting(false);
       Alert.alert('Sign Up Failed', createResponse.message || 'Could not create your account.');

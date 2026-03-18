@@ -25,8 +25,8 @@ const readUserPayload = (result) => {
 const ProfileScreen = ({ navigation }) => {
   const [currentUser, saveCurrentUser] = useCurrentUser();
   const userID = currentUser?.UserID;
-  const userGetEndpoint = `https://mark0s.com/geoquest/v1/api/users/${userID}?key=16gv8f`;
-  const userPutEndpoint = `https://mark0s.com/geoquest/v1/api/users/${userID}?key=16gv8f`;
+  const userGetEndpoint = API.geoQuest.users(userID);
+  const userPutEndpoint = API.geoQuest.users(userID);
 
   const [user, setUser] = useState(fallbackUser);
   const [draft, setDraft] = useState(fallbackUser);

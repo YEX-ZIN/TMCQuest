@@ -32,7 +32,7 @@ const LoginScreen = ({navigation}) => {
     }
 
     setIsLoggingIn(true);
-    const response = await API.get('https://mark0s.com/geoquest/v1/api/users?key=16gv8f');
+    const response = await API.get(API.geoQuest.users());
     if (!response.isSuccess) {
       setIsLoggingIn(false);
       Alert.alert('Login Failed', response.message || 'Unable to reach the API right now.');

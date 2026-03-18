@@ -6,6 +6,7 @@ import * as Location from 'expo-location';
 import { Button } from '../UI/Button';
 import Icons from '../UI/Icons';
 import API from '../API/API';
+import useCurrentUser from '../store/useCurrentUser';
 
 const normaliseList = (result) => {
   if (!result) return [];
@@ -15,17 +16,33 @@ const normaliseList = (result) => {
   return [];
 };
 
+const getID = (obj, ...fields) => {
+  for (const field of fields) {
+    if (obj?.[field] !== undefined && obj?.[field] !== null) return obj[field];
+  }
+  return null;
+};
+
+const normaliseCreatedID = (result, keyName) => {
+  if (result === null || result === undefined) return null;
+  if (typeof result === 'number' || typeof result === 'string') return result;
+  if (Array.isArray(result)) return normaliseCreatedID(result[0], keyName);
+  return getID(result, keyName, 'id', 'insertId', 'InsertId');
+};
+
 const EventCacheListScreen = ({navigation, route}) => {
   // Initialisations ---------------------
   const isHost = route.params?.isHost === true;
+  const [currentUser] = useCurrentUser();
   // State -------------------------------
   const [event, setEvent] = useState(route.params.event);
   const [cachesLoading, setCachesLoading] = useState(false);
+  const [isLoggingFind, setIsLoggingFind] = useState(false);
 
   const eventStart = event.EventStart || event.EventStartTime || '';
   const eventFinish = event.EventFinish || event.EventEndTime || '';
   const eventCaches = event.EventCaches || [];
-  const inviteCode = event.EventInviteCode || String(event.EventID || '-');
+  const inviteCode = String(event.EventID || event.EventId || event.id || '-');
   const parseDate = (value) => {
     const parsed = new Date(value);
     return Number.isNaN(parsed.getTime()) ? null : parsed;
@@ -74,7 +91,7 @@ const EventCacheListScreen = ({navigation, route}) => {
     if (!eventID) return;
 
     setCachesLoading(true);
-    const response = await API.get(`https://mark0s.com/geoquest/v1/api/caches/events/${eventID}?key=16gv8f`);
+    const response = await API.get(API.geoQuest.cachesByEvent(eventID));
     setCachesLoading(false);
 
     if (!response.isSuccess) return;
@@ -82,7 +99,7 @@ const EventCacheListScreen = ({navigation, route}) => {
     setEvent((prev) => ({
       ...prev,
       EventCaches: normaliseList(response.result),
-      EventInviteCode: prev.EventInviteCode || String(eventID),
+      EventInviteCode: String(eventID),
     }));
   }, [event.EventID, event.EventId, event.id]);
 
@@ -105,9 +122,9 @@ const EventCacheListScreen = ({navigation, route}) => {
       return;
     }
 
-    const latitude = selectedCache.CacheLatitude || selectedCache.CacheLat;
-    const longitude = selectedCache.CacheLongitude || selectedCache.CacheLng;
-    if (!latitude || !longitude) {
+    const latitude = selectedCache.CacheLatitude ?? selectedCache.CacheLat;
+    const longitude = selectedCache.CacheLongitude ?? selectedCache.CacheLng;
+    if (latitude === undefined || longitude === undefined || latitude === null || longitude === null) {
       Alert.alert('Navigation Unavailable', 'This cache does not have valid coordinates.');
       return;
     }
@@ -127,6 +144,90 @@ const EventCacheListScreen = ({navigation, route}) => {
     }
 
     await Linking.openURL(targetUrl);
+  };
+
+  const logDiscovery = async () => {
+    if (!currentUser?.UserID) {
+      Alert.alert('Login Required', 'Log in before logging a discovery.');
+      return;
+    }
+
+    const eventID = getID(event, 'EventID', 'EventId', 'id');
+    const cacheID = getID(selectedCache, 'CacheID', 'CacheId', 'id');
+
+    if (!selectedCache || !cacheID || !eventID) {
+      Alert.alert('Select A Cache', 'Tap a cache marker before logging a discovery.');
+      return;
+    }
+
+    setIsLoggingFind(true);
+
+    const playersResponse = await API.get(API.geoQuest.players());
+    if (!playersResponse.isSuccess) {
+      setIsLoggingFind(false);
+      Alert.alert('Log Failed', playersResponse.message || 'Could not load players right now.');
+      return;
+    }
+
+    const players = normaliseList(playersResponse.result);
+    let playerRecord = players.find(
+      (player) => String(player.PlayerUserID) === String(currentUser.UserID)
+        && String(player.PlayerEventID) === String(eventID),
+    );
+
+    if (!playerRecord) {
+      const createPlayerResponse = await API.post(API.geoQuest.players(), {
+        PlayerUserID: currentUser.UserID,
+        PlayerEventID: eventID,
+      });
+
+      if (!createPlayerResponse.isSuccess) {
+        setIsLoggingFind(false);
+        Alert.alert('Log Failed', createPlayerResponse.message || 'Could not join this event automatically.');
+        return;
+      }
+
+      const createdPlayerID = normaliseCreatedID(createPlayerResponse.result, 'PlayerID');
+      playerRecord = { PlayerID: createdPlayerID, PlayerUserID: currentUser.UserID, PlayerEventID: eventID };
+    }
+
+    const playerID = getID(playerRecord, 'PlayerID', 'PlayerId', 'id');
+    if (!playerID) {
+      setIsLoggingFind(false);
+      Alert.alert('Log Failed', 'Could not resolve your player record for this event.');
+      return;
+    }
+
+    const findsResponse = await API.get(API.geoQuest.findsByPlayer(playerID));
+    if (!findsResponse.isSuccess) {
+      setIsLoggingFind(false);
+      Alert.alert('Log Failed', findsResponse.message || 'Could not verify previous discoveries.');
+      return;
+    }
+
+    const existingFinds = normaliseList(findsResponse.result);
+    const alreadyFound = existingFinds.some((find) => String(find.FindCacheID) === String(cacheID));
+    if (alreadyFound) {
+      setIsLoggingFind(false);
+      Alert.alert('Already Logged', 'You already discovered this cache.');
+      return;
+    }
+
+    const createFindResponse = await API.post(API.geoQuest.finds(), {
+      FindPlayerID: playerID,
+      FindCacheID: cacheID,
+      FindDatetime: new Date().toISOString(),
+    });
+
+    setIsLoggingFind(false);
+
+    if (!createFindResponse.isSuccess) {
+      Alert.alert('Log Failed', createFindResponse.message || 'Could not log your discovery.');
+      return;
+    }
+
+    const points = Number(selectedCache.CachePoints || 0);
+    Alert.alert('Discovery Logged', `Nice find! +${Number.isFinite(points) ? points : 0} points.`);
   };
 
   useEffect(() => { requestLocation(); }, []);
@@ -182,8 +283,8 @@ const EventCacheListScreen = ({navigation, route}) => {
           <Marker
             key={cache.CacheID}
             coordinate={{
-              latitude: cache.CacheLatitude || cache.CacheLat,
-              longitude: cache.CacheLongitude || cache.CacheLng,
+              latitude: cache.CacheLatitude ?? cache.CacheLat,
+              longitude: cache.CacheLongitude ?? cache.CacheLng,
             }}
             title={cache.CacheName}
             description={cache.CacheClue}
@@ -245,6 +346,12 @@ const EventCacheListScreen = ({navigation, route}) => {
 
       <View style={styles.bottomOverlay}>
         <View style={styles.actionPanel}>
+          <View style={styles.selectedRow}>
+            <Text style={styles.selectedTitle}>{selectedCache ? selectedCache.CacheName : 'Select a cache marker'}</Text>
+            {selectedCache ? (
+              <Text style={styles.selectedMeta}>{Number(selectedCache.CachePoints || 0)} pts</Text>
+            ) : null}
+          </View>
           <View style={styles.actionRow}>
             <Button
               label=''
@@ -265,6 +372,13 @@ const EventCacheListScreen = ({navigation, route}) => {
               icon={<Icons.Leaderboard color='white' />}
               onClick={gotoLeaderboard}
               styleButton={[styles.actionButton, styles.leaderboardButton]}
+              styleLabel={styles.actionLabel}
+            />
+            <Button
+              label=''
+              icon={<Icons.Add />}
+              onClick={isLoggingFind ? () => {} : logDiscovery}
+              styleButton={[styles.actionButton, styles.logButton]}
               styleLabel={styles.actionLabel}
             />
           </View>
@@ -425,6 +539,25 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.18)',
   },
+  selectedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+    paddingHorizontal: 2,
+    gap: 8,
+  },
+  selectedTitle: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '600',
+    flex: 1,
+  },
+  selectedMeta: {
+    color: '#e9d18f',
+    fontSize: 12,
+    fontWeight: '700',
+  },
   actionRow: {
     flexDirection: 'row',
     gap: 10,
@@ -453,6 +586,10 @@ const styles = StyleSheet.create({
   leaderboardButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.16)',
     borderColor: 'rgba(255, 255, 255, 0.35)',
+  },
+  logButton: {
+    backgroundColor: '#d9a83c',
+    borderColor: '#f0d080',
   },
   navigateButton: {
     backgroundColor: 'white',

@@ -15,12 +15,13 @@ const normaliseList = (result) => {
 };
 
 const normaliseJoinCode = (value) => value.trim().toUpperCase().replace(/^INVITE:\s*/, '').replace(/^#/, '');
+const toCode = (value) => `${value ?? ''}`.trim().toUpperCase();
 
 const JoinEventScreen = ({navigation}) => {
   // Initialisations ---------------------
-  const eventsEndpoint = 'https://mark0s.com/geoquest/v1/api/events?key=16gv8f';
-  const cachesByEvent = (eventID) => `https://mark0s.com/geoquest/v1/api/caches/events/${eventID}?key=16gv8f`;
-  const playersEndpoint = 'https://mark0s.com/geoquest/v1/api/players?key=16gv8f';
+  const eventsEndpoint = API.geoQuest.events();
+  const cachesByEvent = (eventID) => API.geoQuest.cachesByEvent(eventID);
+  const playersEndpoint = API.geoQuest.players();
   const [currentUser] = useCurrentUser();
   // State -------------------------------
   const [code, setCode] = useState('');
@@ -45,8 +46,8 @@ const JoinEventScreen = ({navigation}) => {
 
     const events = normaliseList(eventsResponse.result);
     const matchedEvent = events.find((event) => {
-      const eventInviteCode = ((event.EventInviteCode || event.EventID || event.EventId || event.id || '')).toString().trim().toUpperCase();
-      const eventIDText = (event.EventID || event.EventId || event.id || '').toString().trim().toUpperCase();
+      const eventInviteCode = toCode(event.EventInviteCode);
+      const eventIDText = toCode(event.EventID || event.EventId || event.id);
       return eventInviteCode === inviteCode || eventIDText === inviteCode;
     });
     if (!matchedEvent) {
@@ -63,20 +64,32 @@ const JoinEventScreen = ({navigation}) => {
       }
 
       const playersResponse = await API.get(playersEndpoint);
+      if (!playersResponse.isSuccess) {
+        Alert.alert('Join Failed', playersResponse.message || 'Unable to check existing players for this event.');
+        return;
+      }
+
       const existingPlayers = normaliseList(playersResponse.result);
-      const alreadyJoined = existingPlayers.some((player) => player.PlayerUserID === currentUser.UserID && player.PlayerEventID === eventID);
+      const alreadyJoined = existingPlayers.some(
+        (player) => String(player.PlayerUserID) === String(currentUser.UserID)
+          && String(player.PlayerEventID) === String(eventID),
+      );
 
       if (!alreadyJoined) {
-        await API.post(playersEndpoint, {
+        const createPlayerResponse = await API.post(playersEndpoint, {
           PlayerUserID: currentUser.UserID,
           PlayerEventID: eventID,
         });
+        if (!createPlayerResponse.isSuccess) {
+          Alert.alert('Join Failed', createPlayerResponse.message || 'Could not join this event right now.');
+          return;
+        }
       }
     }
 
     const eventWithCaches = {
       ...matchedEvent,
-      EventInviteCode: matchedEvent.EventInviteCode || String(eventID),
+      EventInviteCode: String(eventID),
       EventCaches: eventCaches,
     };
 
@@ -107,7 +120,7 @@ const JoinEventScreen = ({navigation}) => {
             <Form.InputText
               label="Quest Code"
               value={code}
-              onChange={(value) => setCode(value.toUpperCase())}
+              onChange={setCode}
               labelStyle={styles.inputLabel}
               inputStyle={styles.inputField}
             />

@@ -31,8 +31,8 @@ const EventLeaderboardScreen = ({navigation, route}) => {
 
       setLoading(true);
       const [playersResponse, findsResponse] = await Promise.all([
-        API.get(`https://mark0s.com/geoquest/v1/api/players/events/${eventID}?key=16gv8f`),
-        API.get(`https://mark0s.com/geoquest/v1/api/finds/events/${eventID}?key=16gv8f`),
+        API.get(API.geoQuest.playersByEvent(eventID)),
+        API.get(API.geoQuest.findsByEvent(eventID)),
       ]);
 
       const players = normaliseList(playersResponse.result);

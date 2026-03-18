@@ -7,8 +7,6 @@ import Icons from '../UI/Icons';
 import API from '../API/API';
 import useCurrentUser from '../store/useCurrentUser';
 
-const generateCode = () => Math.random().toString(36).substring(2, 8).toUpperCase();
-
 const normaliseCreatedEvent = (result) => {
   if (!result) return {};
   if (Array.isArray(result)) return result[0] || {};
@@ -40,14 +38,13 @@ const defaultEvent = {
   EventStatusID: 1,
   EventOwner: null,
   EventStatus: null,
-  EventInviteCode: '',
   EventCaches: [],
   EventParticipants: [],
 };
 
 const CreateEventScreen = ({navigation}) => {
   // Initialisations ---------------------
-  const eventsEndpoint = 'https://mark0s.com/geoquest/v1/api/events?key=16gv8f';
+  const eventsEndpoint = API.geoQuest.events();
   const now = new Date();
   const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000);
   const [currentUser] = useCurrentUser();
@@ -55,7 +52,6 @@ const CreateEventScreen = ({navigation}) => {
   const [event, setEvent] = useState({
     ...defaultEvent,
     EventID: Math.floor(100000 + Math.random() * 900000),
-    EventInviteCode: generateCode(),
     EventStart: now.toISOString(),
     EventFinish: oneHourLater.toISOString(),
   });
@@ -105,7 +101,6 @@ const CreateEventScreen = ({navigation}) => {
       const createdEvent = {
         ...eventToSave,
         ...createdPayload,
-        EventInviteCode: createdPayload.EventInviteCode || String(createdEventID),
       };
       navigation.replace('EventCacheListScreen', {event: createdEvent, isHost: true});
     } else {
@@ -215,13 +210,6 @@ const CreateEventScreen = ({navigation}) => {
                 </>
               )}
             </View>
-            <Form.InputText
-              label="Invite Code (temporary local field)"
-              value={event.EventInviteCode}
-              onChange={(value) => handleChange('EventInviteCode', value)}
-              labelStyle={styles.inputLabel}
-              inputStyle={styles.inputField}
-            />
           </Form>
         </View>
       </View>

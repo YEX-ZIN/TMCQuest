@@ -11,6 +11,7 @@ import EventCacheListScreen from './src/components/screens/EventCacheListScreen'
 import EventLeaderboardScreen from './src/components/screens/EventLeaderboardScreen';
 import AddHuntLocationScreen from './src/components/screens/AddHuntLocationScreen';
 import ProfileScreen from './src/components/screens/ProfileScreen';
+import PublicCachesScreen from './src/components/screens/PublicCachesScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -25,6 +26,11 @@ export const App=()=> {
         <Stack.Screen name='ProfileScreen' component={ProfileScreen} options={{headerShown: true, title: 'Profile', headerTransparent: true, headerTintColor: 'white', headerShadowVisible: false}}/>
         <Stack.Screen name='CreateEventScreen' component={CreateEventScreen} options={{headerShown: true, title: 'Create Event', headerStyle: {backgroundColor: 'black'}, headerTintColor: 'white'}}/>
         <Stack.Screen name='JoinEventScreen' component={JoinEventScreen} options={{headerShown: true, title: 'Join Event', headerStyle: {backgroundColor: 'black'}, headerTintColor: 'white'}}/>
+        <Stack.Screen
+          name='PublicCachesScreen'
+          component={PublicCachesScreen}
+          options={{headerShown: true, title: 'Public Caches', headerTransparent: true, headerTintColor: 'white', headerShadowVisible: false}}
+        />
         <Stack.Screen
           name='EventCacheListScreen'
           component={EventCacheListScreen}

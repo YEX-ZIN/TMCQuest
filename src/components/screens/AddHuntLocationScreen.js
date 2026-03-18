@@ -41,7 +41,7 @@ const defaultCache = {
 const AddHuntLocationScreen = ({navigation, route}) => {
   // Initialisations ---------------------
   const { event, coordinate, isHost = false, onCacheAdded } = route.params;
-  const cachesEndpoint = 'https://mark0s.com/geoquest/v1/api/caches?key=16gv8f';
+  const cachesEndpoint = API.geoQuest.caches();
   // State -------------------------------
   const [cache, setCache] = useState({
     ...defaultCache,
