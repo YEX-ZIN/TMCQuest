@@ -1,5 +1,5 @@
 import { Alert, Pressable, StyleSheet, Text, View, ScrollView, ActivityIndicator, ImageBackground } from 'react-native';
-import { useEffect, useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { Button } from '../UI/Button';
@@ -25,6 +25,72 @@ const getFindPoints = (find, cachePointsByID) => {
   if (cacheID === null || cacheID === undefined) return 0;
   return Number(cachePointsByID[String(cacheID)] || 0);
 };
+
+const getEventID = (event) => event?.EventID || event?.EventId || event?.id;
+
+const formatQuestDate = (eventStart) => {
+  if (!eventStart) return '-';
+  const date = new Date(eventStart);
+  if (Number.isNaN(date.getTime())) return '-';
+  return date.toLocaleDateString(undefined, { month: 'short', day: '2-digit', year: 'numeric' });
+};
+
+const buildCachePointsByID = (allCaches) => allCaches.reduce((acc, cache) => {
+  const cacheID = getCacheID(cache);
+  if (cacheID === null || cacheID === undefined) return acc;
+  acc[String(cacheID)] = Number(cache.CachePoints || cache.Cachepoints || 0);
+  return acc;
+}, {});
+
+const buildHostedEvents = (allEvents, currentUserID) => allEvents
+  .filter((event) => String(event.EventOwnerID) === String(currentUserID))
+  .map((event) => ({ ...event, _role: 'host', _score: null, _playerID: null }));
+
+const buildJoinedEntries = ({ allEvents, allPlayers, allFinds, currentUserID, cachePointsByID, hostedEvents }) => {
+  const myPlayerRecords = allPlayers.filter((player) => String(player.PlayerUserID) === String(currentUserID));
+  const hostedIDs = new Set(hostedEvents.map((event) => String(getEventID(event))));
+
+  return myPlayerRecords
+    .filter((player) => !hostedIDs.has(String(player.PlayerEventID)))
+    .map((player) => {
+      const event = allEvents.find((candidate) => String(getEventID(candidate)) === String(player.PlayerEventID));
+      if (!event) return null;
+
+      const score = allFinds
+        .filter((find) => String(getFindPlayerID(find)) === String(player.PlayerID))
+        .reduce((sum, find) => sum + getFindPoints(find, cachePointsByID), 0);
+
+      return { ...event, _role: 'player', _score: score, _playerID: player.PlayerID };
+    })
+    .filter(Boolean);
+};
+
+const AdventureCard = ({ icon, modeLabel, title, description, tags, buttonLabel, buttonIcon, onPress, styleButton, styleLabel }) => (
+  <View style={styles.card}>
+    <View style={styles.cardTopRow}>
+      <View style={styles.cardIcon}>{icon}</View>
+      <View style={styles.cardBadge}>
+        <Text style={styles.cardBadgeText}>{modeLabel}</Text>
+      </View>
+    </View>
+    <Text style={styles.cardTitle}>{title}</Text>
+    <Text style={styles.cardDesc}>{description}</Text>
+    <View style={styles.cardMetaRow}>
+      {tags.map((tag) => (
+        <View key={`${title}-${tag}`} style={styles.metaPill}>
+          <Text style={styles.metaPillText}>{tag}</Text>
+        </View>
+      ))}
+    </View>
+    <Button
+      label={buttonLabel}
+      icon={buttonIcon}
+      onClick={onPress}
+      styleButton={styleButton}
+      styleLabel={styleLabel}
+    />
+  </View>
+);
 
 const DashboardScreen = ({navigation}) => {
   // Initialisations ---------------------
@@ -54,33 +120,16 @@ const DashboardScreen = ({navigation}) => {
     const allFinds = normaliseList(findsRes.result);
     const allCaches = normaliseList(cachesRes.result);
 
-    const cachePointsByID = allCaches.reduce((acc, cache) => {
-      const cacheID = getCacheID(cache);
-      if (cacheID === null || cacheID === undefined) return acc;
-      acc[String(cacheID)] = Number(cache.CachePoints || cache.Cachepoints || 0);
-      return acc;
-    }, {});
-
-    // Hosted events
-    const hostedEvents = allEvents
-      .filter(e => String(e.EventOwnerID) === String(currentUser.UserID))
-      .map(e => ({ ...e, _role: 'host', _score: null, _playerID: null }));
-
-    // Joined events (player records for this user, exclude events they also host)
-    const myPlayerRecords = allPlayers.filter(p => String(p.PlayerUserID) === String(currentUser.UserID));
-    const hostedIDs = new Set(hostedEvents.map(e => String(e.EventID)));
-    const joinedEntries = myPlayerRecords
-      .filter(p => !hostedIDs.has(String(p.PlayerEventID)))
-      .map(p => {
-        const event = allEvents.find(e => String(e.EventID) === String(p.PlayerEventID));
-        if (!event) return null;
-        // Sum points for finds made by this player
-        const score = allFinds
-          .filter(f => String(getFindPlayerID(f)) === String(p.PlayerID))
-          .reduce((sum, f) => sum + getFindPoints(f, cachePointsByID), 0);
-        return { ...event, _role: 'player', _score: score, _playerID: p.PlayerID };
-      })
-      .filter(Boolean);
+    const cachePointsByID = buildCachePointsByID(allCaches);
+    const hostedEvents = buildHostedEvents(allEvents, currentUser.UserID);
+    const joinedEntries = buildJoinedEntries({
+      allEvents,
+      allPlayers,
+      allFinds,
+      currentUserID: currentUser.UserID,
+      cachePointsByID,
+      hostedEvents,
+    });
 
     // Deduplicate and sort newest first
     const combined = [...hostedEvents, ...joinedEntries]
@@ -187,86 +236,44 @@ const DashboardScreen = ({navigation}) => {
         </View>
 
         <View style={styles.cardsContainer}>
-          <View style={styles.card}>
-            <View style={styles.cardTopRow}>
-              <View style={styles.cardIcon}>
-                <Icons.Map />
-              </View>
-              <View style={styles.cardBadge}>
-                <Text style={styles.cardBadgeText}>PRIVATE MODE</Text>
-              </View>
-            </View>
-            <Text style={styles.cardTitle}>Create an Event</Text>
-            <Text style={styles.cardDesc}>
-              Set up a private treasure hunt for your group. Place caches, set a time window, and share an invite code.
-            </Text>
-            <View style={styles.cardMetaRow}>
-              <View style={styles.metaPill}><Text style={styles.metaPillText}>Set time window</Text></View>
-              <View style={styles.metaPill}><Text style={styles.metaPillText}>Share code</Text></View>
-              <View style={styles.metaPill}><Text style={styles.metaPillText}>Track players</Text></View>
-            </View>
-            <Button
-              label="Create Event"
-              icon={<Icons.Add />}
-              onClick={handleCreateEvent}
-              styleButton={styles.primaryButton}
-              styleLabel={styles.primaryLabel}
-            />
-          </View>
+          <AdventureCard
+            icon={<Icons.Map />}
+            modeLabel='PRIVATE MODE'
+            title='Create an Event'
+            description='Set up a private treasure hunt for your group. Place caches, set a time window, and share an invite code.'
+            tags={['Set time window', 'Share code', 'Track players']}
+            buttonLabel='Create Event'
+            buttonIcon={<Icons.Add />}
+            onPress={handleCreateEvent}
+            styleButton={styles.primaryButton}
+            styleLabel={styles.primaryLabel}
+          />
 
-          <View style={styles.card}>
-            <View style={styles.cardTopRow}>
-              <View style={styles.cardIcon}>
-                <Icons.Key />
-              </View>
-              <View style={styles.cardBadge}>
-                <Text style={styles.cardBadgeText}>PLAYER MODE</Text>
-              </View>
-            </View>
-            <Text style={styles.cardTitle}>Join an Event</Text>
-            <Text style={styles.cardDesc}>
-              Have an invite code? Jump into an existing hunt and compete on the leaderboard.
-            </Text>
-            <View style={styles.cardMetaRow}>
-              <View style={styles.metaPill}><Text style={styles.metaPillText}>Enter code</Text></View>
-              <View style={styles.metaPill}><Text style={styles.metaPillText}>Find caches</Text></View>
-              <View style={styles.metaPill}><Text style={styles.metaPillText}>Earn points</Text></View>
-            </View>
-            <Button
-              label="Join Event"
-              icon={<Icons.Submit />}
-              onClick={handleJoinEvent}
-              styleButton={styles.secondaryButton}
-              styleLabel={styles.secondaryLabel}
-            />
-          </View>
+          <AdventureCard
+            icon={<Icons.Key />}
+            modeLabel='PLAYER MODE'
+            title='Join an Event'
+            description='Have an invite code? Jump into an existing hunt and compete on the leaderboard.'
+            tags={['Enter code', 'Find caches', 'Earn points']}
+            buttonLabel='Join Event'
+            buttonIcon={<Icons.Submit />}
+            onPress={handleJoinEvent}
+            styleButton={styles.secondaryButton}
+            styleLabel={styles.secondaryLabel}
+          />
 
-          <View style={styles.card}>
-            <View style={styles.cardTopRow}>
-              <View style={styles.cardIcon}>
-                <Icons.Map />
-              </View>
-              <View style={styles.cardBadge}>
-                <Text style={styles.cardBadgeText}>GLOBAL MODE</Text>
-              </View>
-            </View>
-            <Text style={styles.cardTitle}>Public World</Text>
-            <Text style={styles.cardDesc}>
-              View all public caches on a shared map, navigate to them, and open the event to log discoveries.
-            </Text>
-            <View style={styles.cardMetaRow}>
-              <View style={styles.metaPill}><Text style={styles.metaPillText}>Shared map</Text></View>
-              <View style={styles.metaPill}><Text style={styles.metaPillText}>AR nearby</Text></View>
-              <View style={styles.metaPill}><Text style={styles.metaPillText}>Public ranks</Text></View>
-            </View>
-            <Button
-              label="Explore Public Caches"
-              icon={<Icons.Map color='#5c3b10' />}
-              onClick={handlePublicWorld}
-              styleButton={styles.tertiaryButton}
-              styleLabel={styles.tertiaryLabel}
-            />
-          </View>
+          <AdventureCard
+            icon={<Icons.Map />}
+            modeLabel='GLOBAL MODE'
+            title='Public World'
+            description='View all public caches on a shared map, navigate to them, and open the event to log discoveries.'
+            tags={['Shared map', 'AR nearby', 'Public ranks']}
+            buttonLabel='Explore Public Caches'
+            buttonIcon={<Icons.Map color='#5c3b10' />}
+            onPress={handlePublicWorld}
+            styleButton={styles.tertiaryButton}
+            styleLabel={styles.tertiaryLabel}
+          />
         </View>
 
         {/* ── My Quests ── */}
@@ -297,7 +304,7 @@ const DashboardScreen = ({navigation}) => {
                 <View style={styles.questCardLeft}>
                   <Text style={styles.questName} numberOfLines={1}>{quest.EventName}</Text>
                   <Text style={styles.questDate}>
-                    {quest.EventStart ? new Date(quest.EventStart).toLocaleDateString(undefined, {month: 'short', day: '2-digit', year: 'numeric'}) : '-'}
+                    {formatQuestDate(quest.EventStart)}
                   </Text>
                 </View>
                 <View style={styles.questCardRight}>

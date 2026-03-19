@@ -28,6 +28,31 @@ const getID = (obj, ...fields) => {
 const getCacheID = (cache) => getID(cache, 'CacheID', 'CacheId', 'id');
 const getPlayerID = (player) => getID(player, 'PlayerID', 'PlayerId', 'id');
 const getFindCacheID = (find) => getID(find, 'FindCacheID', 'FindCacheId', 'CacheID', 'CacheId') || getCacheID(find?.FindCache) || getCacheID(find);
+const getEventID = (event) => getID(event, 'EventID', 'EventId', 'id');
+
+const getCacheCoordinates = (cache) => ({
+  latitude: cache?.CacheLatitude ?? cache?.CacheLat,
+  longitude: cache?.CacheLongitude ?? cache?.CacheLng,
+});
+
+const hasCoordinates = ({ latitude, longitude }) => (
+  latitude !== undefined
+  && latitude !== null
+  && longitude !== undefined
+  && longitude !== null
+);
+
+const findPlayerForEvent = (players, userID, eventID) => players.find(
+  (player) => String(player.PlayerUserID) === String(userID)
+    && String(player.PlayerEventID) === String(eventID),
+);
+
+const getCacheKey = (cache) => {
+  const cacheID = getCacheID(cache);
+  if (cacheID !== null && cacheID !== undefined) return String(cacheID);
+  const { latitude, longitude } = getCacheCoordinates(cache);
+  return `${latitude}-${longitude}`;
+};
 
 const DISCOVERY_RADIUS_METERS = 30;
 const AUTO_CAMERA_RADIUS_METERS = 100;
@@ -156,7 +181,7 @@ const EventCacheListScreen = ({navigation, route}) => {
   }, []);
 
   const loadEventCaches = useCallback(async () => {
-    const eventID = event.EventID || event.EventId || event.id;
+    const eventID = getEventID(event);
     if (!eventID) return;
 
     setCachesLoading(true);
@@ -186,7 +211,7 @@ const EventCacheListScreen = ({navigation, route}) => {
   };
 
   const loadFoundCachesForCurrentPlayer = useCallback(async () => {
-    const eventID = getID(event, 'EventID', 'EventId', 'id');
+    const eventID = getEventID(event);
     if (!currentUser?.UserID || !eventID) {
       setFoundCacheLookup({});
       return;
@@ -199,10 +224,7 @@ const EventCacheListScreen = ({navigation, route}) => {
     }
 
     const players = normaliseList(playersResponse.result);
-    const playerRecord = players.find(
-      (player) => String(player.PlayerUserID) === String(currentUser.UserID)
-        && String(player.PlayerEventID) === String(eventID),
-    );
+    const playerRecord = findPlayerForEvent(players, currentUser.UserID, eventID);
 
     const playerID = getPlayerID(playerRecord);
     if (!playerID) {
@@ -231,9 +253,8 @@ const EventCacheListScreen = ({navigation, route}) => {
       return;
     }
 
-    const latitude = selectedCache.CacheLatitude ?? selectedCache.CacheLat;
-    const longitude = selectedCache.CacheLongitude ?? selectedCache.CacheLng;
-    if (latitude === undefined || longitude === undefined || latitude === null || longitude === null) {
+    const { latitude, longitude } = getCacheCoordinates(selectedCache);
+    if (!hasCoordinates({ latitude, longitude })) {
       Alert.alert('Navigation Unavailable', 'This cache does not have valid coordinates.');
       return;
     }
@@ -261,7 +282,7 @@ const EventCacheListScreen = ({navigation, route}) => {
       return;
     }
 
-    const eventID = getID(event, 'EventID', 'EventId', 'id');
+    const eventID = getEventID(event);
     const cacheID = getCacheID(selectedCache);
 
     if (!selectedCache || cacheID === null || cacheID === undefined || eventID === null || eventID === undefined) {
@@ -269,9 +290,8 @@ const EventCacheListScreen = ({navigation, route}) => {
       return;
     }
 
-    const cacheLatitude = selectedCache.CacheLatitude ?? selectedCache.CacheLat;
-    const cacheLongitude = selectedCache.CacheLongitude ?? selectedCache.CacheLng;
-    if (cacheLatitude === undefined || cacheLatitude === null || cacheLongitude === undefined || cacheLongitude === null) {
+    const { latitude: cacheLatitude, longitude: cacheLongitude } = getCacheCoordinates(selectedCache);
+    if (!hasCoordinates({ latitude: cacheLatitude, longitude: cacheLongitude })) {
       Alert.alert('Log Failed', 'This cache does not have valid coordinates.');
       return;
     }
@@ -312,10 +332,7 @@ const EventCacheListScreen = ({navigation, route}) => {
     }
 
     const players = normaliseList(playersResponse.result);
-    let playerRecord = players.find(
-      (player) => String(player.PlayerUserID) === String(currentUser.UserID)
-        && String(player.PlayerEventID) === String(eventID),
-    );
+    let playerRecord = findPlayerForEvent(players, currentUser.UserID, eventID);
 
     if (!playerRecord) {
       const createPlayerResponse = await API.post(API.geoQuest.players(), {
@@ -430,11 +447,9 @@ const EventCacheListScreen = ({navigation, route}) => {
   useEffect(() => {
     if (!isFocused || !selectedCache || !userLocation) return;
 
-    const cacheID = getCacheID(selectedCache);
-    const cacheKey = String(cacheID ?? `${selectedCache.CacheLatitude ?? selectedCache.CacheLat}-${selectedCache.CacheLongitude ?? selectedCache.CacheLng}`);
-    const latitude = selectedCache.CacheLatitude ?? selectedCache.CacheLat;
-    const longitude = selectedCache.CacheLongitude ?? selectedCache.CacheLng;
-    if (latitude === undefined || latitude === null || longitude === undefined || longitude === null) return;
+    const cacheKey = getCacheKey(selectedCache);
+    const { latitude, longitude } = getCacheCoordinates(selectedCache);
+    if (!hasCoordinates({ latitude, longitude })) return;
 
     const meters = distanceInMeters(userLocation.latitude, userLocation.longitude, latitude, longitude);
     const alreadyOpened = autoOpenedCameraByCacheRef.current[cacheKey] === true;
@@ -457,9 +472,8 @@ const EventCacheListScreen = ({navigation, route}) => {
 
   const selectedDistanceText = useMemo(() => {
     if (!selectedCache || !userLocation) return '';
-    const latitude = selectedCache.CacheLatitude ?? selectedCache.CacheLat;
-    const longitude = selectedCache.CacheLongitude ?? selectedCache.CacheLng;
-    if (latitude === undefined || latitude === null || longitude === undefined || longitude === null) return '';
+    const { latitude, longitude } = getCacheCoordinates(selectedCache);
+    if (!hasCoordinates({ latitude, longitude })) return '';
     const meters = distanceInMeters(userLocation.latitude, userLocation.longitude, latitude, longitude);
     if (meters <= AUTO_CAMERA_RADIUS_METERS) return `Camera AR zone: ${Math.round(meters)} m`;
     if (meters <= DISCOVERY_RADIUS_METERS) return `Unlocked: ${Math.round(meters)} m`;
@@ -529,8 +543,7 @@ const EventCacheListScreen = ({navigation, route}) => {
           <Marker
             key={cacheID ?? `${cache.CacheName || 'cache'}-${index}`}
             coordinate={{
-              latitude: cache.CacheLatitude ?? cache.CacheLat,
-              longitude: cache.CacheLongitude ?? cache.CacheLng,
+              ...getCacheCoordinates(cache),
             }}
             title={cache.CacheName}
             description={cache.CacheClue}
