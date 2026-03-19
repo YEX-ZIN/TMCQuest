@@ -27,11 +27,20 @@ const ProfileScreen = ({ navigation }) => {
   const userID = currentUser?.UserID;
   const userGetEndpoint = API.geoQuest.users(userID);
   const userPutEndpoint = API.geoQuest.users(userID);
+  const initialUser = { ...fallbackUser, ...(currentUser || {}) };
 
-  const [user, setUser] = useState(fallbackUser);
-  const [draft, setDraft] = useState(fallbackUser);
+  const [user, setUser] = useState(initialUser);
+  const [draft, setDraft] = useState(initialUser);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    const merged = { ...fallbackUser, ...currentUser };
+    setUser((prev) => ({ ...prev, ...merged }));
+    if (!isEditing) setDraft((prev) => ({ ...prev, ...merged }));
+  }, [currentUser, isEditing]);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -101,6 +110,38 @@ const ProfileScreen = ({ navigation }) => {
         },
       },
     ]);
+  };
+
+  const handleDeleteAccount = () => {
+    if (!userID) {
+      Alert.alert('Delete Failed', 'No account is currently loaded.');
+      return;
+    }
+
+    Alert.alert(
+      'Delete Account',
+      'This permanently deletes your account. This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Account',
+          style: 'destructive',
+          onPress: async () => {
+            setIsDeleting(true);
+            const response = await API.delete(API.geoQuest.users(userID));
+            setIsDeleting(false);
+
+            if (!response.isSuccess) {
+              Alert.alert('Delete Failed', response.message || 'Could not delete your account right now.');
+              return;
+            }
+
+            await saveCurrentUser(null);
+            navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+          },
+        },
+      ],
+    );
   };
 
   const renderValue = (field, fallback = '-') => (isEditing ? draft[field] : (user[field] || fallback));
@@ -248,6 +289,14 @@ const ProfileScreen = ({ navigation }) => {
           onClick={handleLogout}
           styleButton={styles.logoutButton}
           styleLabel={styles.logoutLabel}
+        />
+
+        <Button
+          label={isDeleting ? 'Deleting Account...' : 'Delete Account'}
+          icon={<Icons.Delete />}
+          onClick={isDeleting ? () => {} : handleDeleteAccount}
+          styleButton={styles.deleteButton}
+          styleLabel={styles.deleteLabel}
         />
       </ScrollView>
     </Screen>
@@ -457,6 +506,18 @@ const styles = StyleSheet.create({
   },
   logoutLabel: {
     color: 'white',
+    fontWeight: '700',
+  },
+  deleteButton: {
+    width: '100%',
+    backgroundColor: '#4a0d0d',
+    borderColor: '#ef4444',
+    borderWidth: 1,
+    borderRadius: 12,
+    minHeight: 50,
+  },
+  deleteLabel: {
+    color: '#fecaca',
     fontWeight: '700',
   },
 });

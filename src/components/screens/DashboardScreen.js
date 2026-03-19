@@ -42,20 +42,20 @@ const DashboardScreen = ({navigation}) => {
 
     // Hosted events
     const hostedEvents = allEvents
-      .filter(e => (e.EventOwnerID) === currentUser.UserID)
+      .filter(e => String(e.EventOwnerID) === String(currentUser.UserID))
       .map(e => ({ ...e, _role: 'host', _score: null, _playerID: null }));
 
     // Joined events (player records for this user, exclude events they also host)
-    const myPlayerRecords = allPlayers.filter(p => p.PlayerUserID === currentUser.UserID);
-    const hostedIDs = new Set(hostedEvents.map(e => e.EventID));
+    const myPlayerRecords = allPlayers.filter(p => String(p.PlayerUserID) === String(currentUser.UserID));
+    const hostedIDs = new Set(hostedEvents.map(e => String(e.EventID)));
     const joinedEntries = myPlayerRecords
-      .filter(p => !hostedIDs.has(p.PlayerEventID))
+      .filter(p => !hostedIDs.has(String(p.PlayerEventID)))
       .map(p => {
-        const event = allEvents.find(e => e.EventID === p.PlayerEventID);
+        const event = allEvents.find(e => String(e.EventID) === String(p.PlayerEventID));
         if (!event) return null;
         // Sum points for finds made by this player
         const score = allFinds
-          .filter(f => f.FindPlayerID === p.PlayerID)
+          .filter(f => String(f.FindPlayerID) === String(p.PlayerID))
           .reduce((sum, f) => sum + (f.FindCache?.CachePoints || 0), 0);
         return { ...event, _role: 'player', _score: score, _playerID: p.PlayerID };
       })

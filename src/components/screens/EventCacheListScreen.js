@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Platform, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import MapView, { Marker } from 'react-native-maps';
@@ -30,6 +30,33 @@ const normaliseCreatedID = (result, keyName) => {
   return getID(result, keyName, 'id', 'insertId', 'InsertId');
 };
 
+const toRadians = (degrees) => degrees * (Math.PI / 180);
+const distanceInMeters = (fromLat, fromLng, toLat, toLng) => {
+  const earthRadius = 6371000;
+  const deltaLat = toRadians(toLat - fromLat);
+  const deltaLng = toRadians(toLng - fromLng);
+  const lat1 = toRadians(fromLat);
+  const lat2 = toRadians(toLat);
+
+  const a = Math.sin(deltaLat / 2) ** 2
+    + Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLng / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return earthRadius * c;
+};
+
+const formatDistance = (meters) => {
+  if (!Number.isFinite(meters)) return '-';
+  if (meters < 1000) return `${Math.round(meters)} m away`;
+  return `${(meters / 1000).toFixed(2)} km away`;
+};
+
+const encodeQuestCode = (value) => {
+  const numeric = Number(value);
+  if (Number.isNaN(numeric)) return `${value ?? '-'}`;
+  const mixed = (numeric * 1103515245 + 12345) >>> 0;
+  return mixed.toString(36).slice(-6).padStart(6, '0').toLowerCase();
+};
+
 const EventCacheListScreen = ({navigation, route}) => {
   // Initialisations ---------------------
   const isHost = route.params?.isHost === true;
@@ -38,11 +65,14 @@ const EventCacheListScreen = ({navigation, route}) => {
   const [event, setEvent] = useState(route.params.event);
   const [cachesLoading, setCachesLoading] = useState(false);
   const [isLoggingFind, setIsLoggingFind] = useState(false);
+  const [foundCacheLookup, setFoundCacheLookup] = useState({});
 
   const eventStart = event.EventStart || event.EventStartTime || '';
   const eventFinish = event.EventFinish || event.EventEndTime || '';
   const eventCaches = event.EventCaches || [];
-  const inviteCode = String(event.EventID || event.EventId || event.id || '-');
+  const inviteCode = (event.EventInviteCode
+    ? `${event.EventInviteCode}`
+    : encodeQuestCode(event.EventID || event.EventId || event.id || '-')).toUpperCase();
   const parseDate = (value) => {
     const parsed = new Date(value);
     return Number.isNaN(parsed.getTime()) ? null : parsed;
@@ -69,6 +99,7 @@ const EventCacheListScreen = ({navigation, route}) => {
   const [userLocation, setUserLocation] = useState(null);
   const [locationLoading, setLocationLoading] = useState(true);
   const [selectedCache, setSelectedCache] = useState(null);
+  const [leaderboardRefreshKey, setLeaderboardRefreshKey] = useState(Date.now());
   // Handlers ----------------------------
   const requestLocation = async () => {
     setLocationLoading(true);
@@ -83,7 +114,9 @@ const EventCacheListScreen = ({navigation, route}) => {
     setLocationLoading(false);
   };
 
-  const gotoLeaderboard = () => navigation.navigate('EventLeaderboardScreen', {event});
+  const gotoLeaderboard = () => {
+    navigation.navigate('EventLeaderboardScreen', {event, refreshKey: leaderboardRefreshKey});
+  };
   const recenterMap = () => requestLocation();
   const selectCache = (cache) => setSelectedCache(cache);
   const loadEventCaches = useCallback(async () => {
@@ -115,6 +148,46 @@ const EventCacheListScreen = ({navigation, route}) => {
     const coordinate = mapEvent.nativeEvent.coordinate;
     navigation.navigate('AddHuntLocationScreen', {event, coordinate, isHost, onCacheAdded: handleCacheAdded});
   };
+
+  const loadFoundCachesForCurrentPlayer = useCallback(async () => {
+    const eventID = getID(event, 'EventID', 'EventId', 'id');
+    if (!currentUser?.UserID || !eventID) {
+      setFoundCacheLookup({});
+      return;
+    }
+
+    const playersResponse = await API.get(API.geoQuest.players());
+    if (!playersResponse.isSuccess) {
+      setFoundCacheLookup({});
+      return;
+    }
+
+    const players = normaliseList(playersResponse.result);
+    const playerRecord = players.find(
+      (player) => String(player.PlayerUserID) === String(currentUser.UserID)
+        && String(player.PlayerEventID) === String(eventID),
+    );
+
+    const playerID = getID(playerRecord, 'PlayerID', 'PlayerId', 'id');
+    if (!playerID) {
+      setFoundCacheLookup({});
+      return;
+    }
+
+    const findsResponse = await API.get(API.geoQuest.findsByPlayer(playerID));
+    if (!findsResponse.isSuccess) {
+      setFoundCacheLookup({});
+      return;
+    }
+
+    const lookup = normaliseList(findsResponse.result).reduce((acc, find) => {
+      const cacheID = getID(find, 'FindCacheID') || getID(find.FindCache, 'CacheID', 'CacheId', 'id');
+      if (cacheID !== null && cacheID !== undefined) acc[String(cacheID)] = true;
+      return acc;
+    }, {});
+
+    setFoundCacheLookup(lookup);
+  }, [currentUser?.UserID, event]);
 
   const gotoSelectedCache = async () => {
     if (!selectedCache) {
@@ -226,12 +299,28 @@ const EventCacheListScreen = ({navigation, route}) => {
       return;
     }
 
+    setFoundCacheLookup((prev) => ({
+      ...prev,
+      [String(cacheID)]: true,
+    }));
+    setLeaderboardRefreshKey(Date.now());
+
     const points = Number(selectedCache.CachePoints || 0);
     Alert.alert('Discovery Logged', `Nice find! +${Number.isFinite(points) ? points : 0} points.`);
   };
 
   useEffect(() => { requestLocation(); }, []);
   useEffect(() => { loadEventCaches(); }, [loadEventCaches]);
+  useEffect(() => { loadFoundCachesForCurrentPlayer(); }, [loadFoundCachesForCurrentPlayer]);
+
+  const selectedDistanceText = useMemo(() => {
+    if (!selectedCache || !userLocation) return '';
+    const latitude = selectedCache.CacheLatitude ?? selectedCache.CacheLat;
+    const longitude = selectedCache.CacheLongitude ?? selectedCache.CacheLng;
+    if (latitude === undefined || latitude === null || longitude === undefined || longitude === null) return '';
+    const meters = distanceInMeters(userLocation.latitude, userLocation.longitude, latitude, longitude);
+    return formatDistance(meters);
+  }, [selectedCache, userLocation]);
   // View --------------------------------
   const defaultRegion = {
     latitude: 51.5074,
@@ -288,7 +377,11 @@ const EventCacheListScreen = ({navigation, route}) => {
             }}
             title={cache.CacheName}
             description={cache.CacheClue}
-            pinColor={selectedCache?.CacheID === cache.CacheID ? 'blue' : 'red'}
+            pinColor={
+              selectedCache?.CacheID === cache.CacheID
+                ? 'blue'
+                : (foundCacheLookup[String(cache.CacheID)] ? 'green' : 'red')
+            }
             onPress={() => selectCache(cache)}
           />
         ))}
@@ -351,6 +444,9 @@ const EventCacheListScreen = ({navigation, route}) => {
             {selectedCache ? (
               <Text style={styles.selectedMeta}>{Number(selectedCache.CachePoints || 0)} pts</Text>
             ) : null}
+          </View>
+          <View style={styles.selectedRow}>
+            <Text style={styles.selectedSubMeta}>{selectedDistanceText || 'Distance will show after selecting a cache'}</Text>
           </View>
           <View style={styles.actionRow}>
             <Button
@@ -557,6 +653,12 @@ const styles = StyleSheet.create({
     color: '#e9d18f',
     fontSize: 12,
     fontWeight: '700',
+  },
+  selectedSubMeta: {
+    color: '#d9d9d9',
+    fontSize: 11,
+    fontWeight: '600',
+    flex: 1,
   },
   actionRow: {
     flexDirection: 'row',

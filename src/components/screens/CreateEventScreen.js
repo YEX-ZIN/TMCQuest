@@ -7,6 +7,9 @@ import Icons from '../UI/Icons';
 import API from '../API/API';
 import useCurrentUser from '../store/useCurrentUser';
 
+const generateSystemEventCode = () => Math.random().toString(36).slice(2, 8).toLowerCase();
+const sanitiseCode = (value) => `${value || ''}`.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+
 const normaliseCreatedEvent = (result) => {
   if (!result) return {};
   if (Array.isArray(result)) return result[0] || {};
@@ -25,6 +28,43 @@ const normaliseCreatedEvent = (result) => {
     null;
 
   return eventID ? { ...result, EventID: eventID } : result;
+};
+
+const normaliseList = (result) => {
+  if (!result) return [];
+  if (Array.isArray(result)) return result;
+  if (Array.isArray(result.data)) return result.data;
+  if (Array.isArray(result.result)) return result.result;
+  return [];
+};
+
+const resolveCreatedEvent = async (createdPayload, eventToSave, ownerID) => {
+  if (createdPayload?.EventID || createdPayload?.EventId || createdPayload?.id) {
+    return { ...eventToSave, ...createdPayload };
+  }
+
+  const response = await API.get(API.geoQuest.eventsByUser(ownerID));
+  if (!response.isSuccess) return { ...eventToSave, ...createdPayload };
+
+  const ownerEvents = normaliseList(response.result)
+    .filter((item) => String(item.EventOwnerID) === String(ownerID));
+
+  const exactMatch = ownerEvents.find((item) => (
+    (item.EventName || '') === (eventToSave.EventName || '')
+      && (item.EventDescription || '') === (eventToSave.EventDescription || '')
+      && (item.EventStart || '') === (eventToSave.EventStart || '')
+      && (item.EventFinish || '') === (eventToSave.EventFinish || '')
+  ));
+
+  if (exactMatch) return { ...eventToSave, ...createdPayload, ...exactMatch };
+
+  const fuzzyMatch = ownerEvents
+    .filter((item) => (item.EventName || '') === (eventToSave.EventName || ''))
+    .sort((a, b) => new Date(b.EventStart || 0) - new Date(a.EventStart || 0))[0];
+
+  return fuzzyMatch
+    ? { ...eventToSave, ...createdPayload, ...fuzzyMatch }
+    : { ...eventToSave, ...createdPayload };
 };
 
 const defaultEvent = {
@@ -59,6 +99,8 @@ const CreateEventScreen = ({navigation}) => {
   const [finishDate, setFinishDate] = useState(oneHourLater);
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showFinishPicker, setShowFinishPicker] = useState(false);
+  const [systemCode, setSystemCode] = useState(generateSystemEventCode());
+  const [customCode, setCustomCode] = useState('');
   // Handlers ----------------------------
   const handleChange = (field, value) => setEvent({...event, [field]: value});
 
@@ -82,11 +124,33 @@ const CreateEventScreen = ({navigation}) => {
       return;
     }
 
+    const desiredCode = sanitiseCode(customCode) || systemCode;
+    if (!/^[a-z0-9]{4,12}$/.test(desiredCode)) {
+      Alert.alert('Invalid Code', 'Event code must be 4 to 12 letters/numbers.');
+      return;
+    }
+
+    const existingEventsResponse = await API.get(eventsEndpoint);
+    if (!existingEventsResponse.isSuccess) {
+      Alert.alert('Create Event Failed', existingEventsResponse.message || 'Unable to validate event code right now.');
+      return;
+    }
+
+    const existingEvents = normaliseList(existingEventsResponse.result);
+    const codeInUse = existingEvents.some(
+      (item) => sanitiseCode(item.EventInviteCode) === desiredCode,
+    );
+    if (codeInUse) {
+      Alert.alert('Code Unavailable', 'That event code is already in use. Choose another one.');
+      return;
+    }
+
     const eventToSave = {
       ...event,
       EventOwnerID: currentUser?.UserID || event.EventOwnerID,
       EventStart: startDate.toISOString(),
       EventFinish: finishDate.toISOString(),
+      EventInviteCode: desiredCode,
     };
 
     if (!eventToSave.EventOwnerID) {
@@ -97,11 +161,11 @@ const CreateEventScreen = ({navigation}) => {
     const response = await API.post(eventsEndpoint, eventToSave);
     if (response.isSuccess) {
       const createdPayload = normaliseCreatedEvent(response.result);
-      const createdEventID = createdPayload.EventID || eventToSave.EventID;
-      const createdEvent = {
-        ...eventToSave,
-        ...createdPayload,
-      };
+      const createdEvent = await resolveCreatedEvent(
+        createdPayload,
+        eventToSave,
+        eventToSave.EventOwnerID,
+      );
       navigation.replace('EventCacheListScreen', {event: createdEvent, isHost: true});
     } else {
       Alert.alert('Create Event Failed', response.message);
@@ -143,6 +207,30 @@ const CreateEventScreen = ({navigation}) => {
               labelStyle={styles.inputLabel}
               inputStyle={styles.inputField}
             />
+
+            <View style={styles.codeCard}>
+              <Text style={styles.codeTitle}>Event Code</Text>
+              <Text style={styles.codeHint}>System code is auto-generated. You can enter your own.</Text>
+
+              <View style={styles.systemCodeRow}>
+                <Text style={styles.systemCodeLabel}>System Code</Text>
+                <Text style={styles.systemCodeValue}>{systemCode.toUpperCase()}</Text>
+              </View>
+              <Text style={styles.regenerateCodeText} onPress={() => setSystemCode(generateSystemEventCode())}>
+                Generate New System Code
+              </Text>
+
+              <Form.InputText
+                label="Custom Code (optional)"
+                value={customCode}
+                onChange={setCustomCode}
+                placeholder="e.g. TREK25"
+                labelStyle={styles.inputLabel}
+                inputStyle={styles.inputField}
+              />
+              <Text style={styles.codePreview}>Code that will be used: {(sanitiseCode(customCode) || systemCode).toUpperCase()}</Text>
+            </View>
+
             <View style={styles.pickerSection}>
               <Text style={styles.pickerLabel}>Start Time</Text>
               {Platform.OS === 'ios' ? (
@@ -283,6 +371,56 @@ const styles = StyleSheet.create({
   },
   pickerSection: {
     gap: 6,
+  },
+  codeCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#d8be86',
+    backgroundColor: '#f8f1df',
+    padding: 10,
+    gap: 6,
+  },
+  codeTitle: {
+    color: '#5c3b10',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  codeHint: {
+    color: '#7a5217',
+    fontSize: 12,
+  },
+  systemCodeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#d8be86',
+    backgroundColor: '#f3e5c2',
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+  },
+  systemCodeLabel: {
+    color: '#5c3b10',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  systemCodeValue: {
+    color: '#2f1b07',
+    fontSize: 16,
+    letterSpacing: 0.7,
+    fontWeight: '700',
+  },
+  regenerateCodeText: {
+    color: '#7a5217',
+    fontSize: 13,
+    textDecorationLine: 'underline',
+    alignSelf: 'flex-start',
+  },
+  codePreview: {
+    color: '#6b4e2a',
+    fontSize: 12,
+    fontWeight: '600',
   },
   pickerLabel: {
     color: '#5c3b10',

@@ -1,9 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
+import * as Location from 'expo-location';
 import Screen from '../layout/Screen';
 import Form from '../UI/Form';
 import Icons from '../UI/Icons';
 import API from '../API/API';
+
+const DEFAULT_CACHE_IMAGE_URL = 'https://placehold.co/600x400/png';
 
 const normaliseCreatedCache = (result) => {
   if (!result) return {};
@@ -38,17 +41,56 @@ const defaultCache = {
   CacheEvent: null,
 };
 
+const buildLocationName = (place) => {
+  if (!place) return '';
+  const primary = [place.name, place.street]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+  const locality = [place.city || place.subregion, place.region]
+    .filter(Boolean)
+    .join(', ')
+    .trim();
+  return [primary, locality].filter(Boolean).join(' - ').trim();
+};
+
 const AddHuntLocationScreen = ({navigation, route}) => {
   // Initialisations ---------------------
   const { event, coordinate, isHost = false, onCacheAdded } = route.params;
   const cachesEndpoint = API.geoQuest.caches();
   // State -------------------------------
+  const [isResolvingName, setIsResolvingName] = useState(true);
   const [cache, setCache] = useState({
     ...defaultCache,
     CacheEventID: event.EventID,
     CacheLatitude: coordinate.latitude,
     CacheLongitude: coordinate.longitude,
   });
+
+  useEffect(() => {
+    const setNameFromCoordinate = async () => {
+      setIsResolvingName(true);
+      try {
+        const places = await Location.reverseGeocodeAsync({
+          latitude: coordinate.latitude,
+          longitude: coordinate.longitude,
+        });
+        const suggestedName = buildLocationName(places?.[0]);
+        if (suggestedName) {
+          setCache((prev) => ({
+            ...prev,
+            CacheName: prev.CacheName || suggestedName,
+          }));
+        }
+      } catch (_error) {
+        // Ignore lookup failures and keep manual entry available.
+      } finally {
+        setIsResolvingName(false);
+      }
+    };
+
+    setNameFromCoordinate();
+  }, [coordinate.latitude, coordinate.longitude]);
   // Handlers ----------------------------
   const handleChange = (field, value) => setCache({...cache, [field]: value});
 
@@ -64,14 +106,29 @@ const AddHuntLocationScreen = ({navigation, route}) => {
       return;
     }
 
+    const { CacheImageURL, ...cacheWithoutImage } = cache;
+    const imageURL = (CacheImageURL || '').trim();
+
     const cacheToSave = {
-      ...cache,
+      ...cacheWithoutImage,
       CachePoints: points,
       CacheLatitude: Number(cache.CacheLatitude),
       CacheLongitude: Number(cache.CacheLongitude),
+      ...(imageURL ? { CacheImageURL: imageURL } : {}),
     };
 
-    const response = await API.post(cachesEndpoint, cacheToSave);
+    let response = await API.post(cachesEndpoint, cacheToSave);
+
+    const imageRequiredError = !imageURL
+      && (response.message || '').toLowerCase().includes('cacheimageurl');
+
+    if (!response.isSuccess && imageRequiredError) {
+      response = await API.post(cachesEndpoint, {
+        ...cacheToSave,
+        CacheImageURL: DEFAULT_CACHE_IMAGE_URL,
+      });
+    }
+
     if (!response.isSuccess) {
       Alert.alert('Add Location Failed', response.message);
       return;
@@ -95,6 +152,7 @@ const AddHuntLocationScreen = ({navigation, route}) => {
         <Text style={styles.title}>Add Hunt Location</Text>
         <Text style={styles.subtitle}>Selected map point:</Text>
         <Text style={styles.coords}>Lat {cache.CacheLatitude.toFixed(6)} | Lng {cache.CacheLongitude.toFixed(6)}</Text>
+        <Text style={styles.lookupText}>{isResolvingName ? 'Finding location name...' : 'Location name loaded from map point.'}</Text>
       </View>
 
       <Form
@@ -151,6 +209,10 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: 'black',
     fontWeight: '600',
+  },
+  lookupText: {
+    fontSize: 12,
+    color: '#555555',
   },
 });
 

@@ -152,6 +152,8 @@ const PublicCachesScreen = ({ navigation }) => {
     });
   };
 
+  const openPublicLeaderboard = () => navigation.navigate('PublicLeaderboardScreen');
+
   return (
     <View style={styles.screen}>
       <StatusBar style='dark' />
@@ -224,6 +226,13 @@ const PublicCachesScreen = ({ navigation }) => {
               icon={<Icons.Map color='white' />}
               onClick={openSelectedEvent}
               styleButton={[styles.actionButton, styles.openEventButton]}
+              styleLabel={styles.actionLabel}
+            />
+            <Button
+              label=''
+              icon={<Icons.Leaderboard color='white' />}
+              onClick={openPublicLeaderboard}
+              styleButton={[styles.actionButton, styles.leaderboardButton]}
               styleLabel={styles.actionLabel}
             />
           </View>
@@ -340,6 +349,10 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.35)',
   },
   openEventButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.16)',
+    borderColor: 'rgba(255, 255, 255, 0.35)',
+  },
+  leaderboardButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.16)',
     borderColor: 'rgba(255, 255, 255, 0.35)',
   },

@@ -14,6 +14,32 @@ const normaliseList = (result) => {
   return [];
 };
 
+const DEFAULT_PROFILE_IMAGE_URL = 'https://placehold.co/300x300/png';
+const onlyDigits = (value) => `${value || ''}`.replace(/\D/g, '');
+const toApiPhoneFallback = (digits) => {
+  if (digits.length === 11 && digits.startsWith('0')) return `+44${digits.slice(1)}`;
+  if (digits.length === 10) return `+44${digits}`;
+  return digits;
+};
+const readCreatedUserID = (result) => {
+  if (!result) return null;
+  if (Array.isArray(result)) return readCreatedUserID(result[0]);
+  if (typeof result === 'number' || typeof result === 'string') return result;
+  return result.UserID || result.UserId || result.id || result.insertId || result.InsertId || null;
+};
+
+const resolveUserByUsername = async (username) => {
+  const response = await API.get(API.geoQuest.users());
+  if (!response.isSuccess) return null;
+
+  const users = normaliseList(response.result);
+  const matched = users
+    .filter((item) => (item.UserUsername || '').toLowerCase() === username.toLowerCase())
+    .sort((a, b) => Number(b.UserID || 0) - Number(a.UserID || 0))[0];
+
+  return matched || null;
+};
+
 const SignUpScreen = ({navigation}) => {
   const [, saveCurrentUser] = useCurrentUser();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -32,11 +58,18 @@ const SignUpScreen = ({navigation}) => {
     const firstName = form.UserFirstname.trim();
     const lastName = form.UserLastname.trim();
     const phone = form.UserPhone.trim();
+    const phoneDigits = onlyDigits(phone);
     const username = form.UserUsername.trim();
     const password = form.UserPassword;
+    const imageURL = form.UserImageURL.trim();
 
     if (!firstName || !lastName || !phone || !username || !password) {
       Alert.alert('Missing Details', 'Complete all required fields before signing up.');
+      return;
+    }
+
+    if (phoneDigits.length < 10 || phoneDigits.length > 11) {
+      Alert.alert('Invalid Phone', 'Phone number must contain 10 or 11 digits.');
       return;
     }
 
@@ -66,10 +99,25 @@ const SignUpScreen = ({navigation}) => {
       UserLatitude: 0,
       UserLongitude: 0,
       UserTimestamp: Date.now(),
-      UserImageURL: form.UserImageURL.trim(),
+      UserImageURL: imageURL || DEFAULT_PROFILE_IMAGE_URL,
     };
 
-    const createResponse = await API.post(API.geoQuest.users(), newUser);
+    let createResponse = await API.post(API.geoQuest.users(), newUser);
+
+    const phoneLengthError = (createResponse.message || '').toLowerCase().includes('userphone')
+      && (createResponse.message || '').toLowerCase().includes('at least 12');
+
+    if (!createResponse.isSuccess && phoneLengthError) {
+      const retryPayload = {
+        ...newUser,
+        UserPhone: toApiPhoneFallback(phoneDigits),
+      };
+      createResponse = await API.post(API.geoQuest.users(), retryPayload);
+      if (createResponse.isSuccess) {
+        newUser.UserPhone = retryPayload.UserPhone;
+      }
+    }
+
     if (!createResponse.isSuccess) {
       setIsSubmitting(false);
       Alert.alert('Sign Up Failed', createResponse.message || 'Could not create your account.');
@@ -77,11 +125,19 @@ const SignUpScreen = ({navigation}) => {
     }
 
     const createdResult = createResponse.result;
-    const createdUserID = createdResult?.UserID || createdResult?.id || createdResult?.insertId || createdResult?.InsertId || null;
-    const createdUser = {
+    const createdUserID = readCreatedUserID(createdResult);
+    let createdUser = {
       ...newUser,
       UserID: createdUserID,
     };
+
+    const resolvedUser = await resolveUserByUsername(username);
+    if (resolvedUser) {
+      createdUser = {
+        ...createdUser,
+        ...resolvedUser,
+      };
+    }
 
     await saveCurrentUser(createdUser);
     setIsSubmitting(false);

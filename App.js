@@ -12,6 +12,7 @@ import EventLeaderboardScreen from './src/components/screens/EventLeaderboardScr
 import AddHuntLocationScreen from './src/components/screens/AddHuntLocationScreen';
 import ProfileScreen from './src/components/screens/ProfileScreen';
 import PublicCachesScreen from './src/components/screens/PublicCachesScreen';
+import PublicLeaderboardScreen from './src/components/screens/PublicLeaderboardScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -31,6 +32,7 @@ export const App=()=> {
           component={PublicCachesScreen}
           options={{headerShown: true, title: 'Public Caches', headerTransparent: true, headerTintColor: 'white', headerShadowVisible: false}}
         />
+        <Stack.Screen name='PublicLeaderboardScreen' component={PublicLeaderboardScreen} options={{headerShown: true, title: 'Public Leaderboard', headerStyle: {backgroundColor: 'black'}, headerTintColor: 'white'}}/>
         <Stack.Screen
           name='EventCacheListScreen'
           component={EventCacheListScreen}

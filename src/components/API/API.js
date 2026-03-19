@@ -53,9 +53,21 @@ const callFetch = async (endpoint, method, dataObj = null) => {
     let result = null;
     const response = await fetch(endpoint, requestObj);
     if (response.status !== 204) result = await response.json();
+
+    const readMessage = (payload) => {
+      if (!payload) return 'Request failed';
+      if (typeof payload === 'string') return payload;
+      if (Array.isArray(payload)) return payload.map((item) => `${item}`).join('\n');
+      const msg = payload.message;
+      if (Array.isArray(msg)) return msg.map((item) => `${item}`).join('\n');
+      if (typeof msg === 'string') return msg;
+      if (msg && typeof msg === 'object') return JSON.stringify(msg);
+      return 'Request failed';
+    };
+
     return response.status >= 200 && response.status < 300
       ? { isSuccess: true, result }
-      : { isSuccess: false, message: `${result.message}` };
+      : { isSuccess: false, message: readMessage(result) };
   } catch (error) {
     return { isSuccess: false, message: error.message };
   }

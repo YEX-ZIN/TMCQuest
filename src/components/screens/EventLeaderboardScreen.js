@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import Screen from '../layout/Screen';
 import Icons from '../UI/Icons';
 import API from '../API/API';
@@ -15,13 +16,15 @@ const normaliseList = (result) => {
 const EventLeaderboardScreen = ({navigation, route}) => {
   // Initialisations ---------------------
   const {event} = route.params;
+  const refreshKey = route.params?.refreshKey;
   // State -------------------------------
   const [ranked, setRanked] = useState([]);
   const [loading, setLoading] = useState(true);
   // Handlers ----------------------------
   // View --------------------------------
-  useEffect(() => {
-    const loadLeaderboard = async () => {
+  useFocusEffect(
+    useCallback(() => {
+      const loadLeaderboard = async () => {
       const eventID = event.EventID || event.EventId || event.id;
       if (!eventID) {
         setRanked([]);
@@ -58,10 +61,11 @@ const EventLeaderboardScreen = ({navigation, route}) => {
 
       setRanked(rows);
       setLoading(false);
-    };
+      };
 
-    loadLeaderboard();
-  }, [event]);
+      loadLeaderboard();
+    }, [event, refreshKey]),
+  );
 
   const medalColour = (index) => {
     if (index === 0) return '#FFD700';

@@ -16,6 +16,12 @@ const normaliseList = (result) => {
 
 const normaliseJoinCode = (value) => value.trim().toUpperCase().replace(/^INVITE:\s*/, '').replace(/^#/, '');
 const toCode = (value) => `${value ?? ''}`.trim().toUpperCase();
+const encodeQuestCode = (value) => {
+  const numeric = Number(value);
+  if (Number.isNaN(numeric)) return `${value ?? ''}`.toLowerCase().trim();
+  const mixed = (numeric * 1103515245 + 12345) >>> 0;
+  return mixed.toString(36).slice(-6).padStart(6, '0').toLowerCase();
+};
 
 const JoinEventScreen = ({navigation}) => {
   // Initialisations ---------------------
@@ -48,7 +54,10 @@ const JoinEventScreen = ({navigation}) => {
     const matchedEvent = events.find((event) => {
       const eventInviteCode = toCode(event.EventInviteCode);
       const eventIDText = toCode(event.EventID || event.EventId || event.id);
-      return eventInviteCode === inviteCode || eventIDText === inviteCode;
+      const encodedEventCode = toCode(encodeQuestCode(eventIDText));
+      return eventInviteCode === inviteCode
+        || eventIDText === inviteCode
+        || encodedEventCode === inviteCode;
     });
     if (!matchedEvent) {
       Alert.alert('Not Found', 'No event found with that code. Use the event code shown on the event screen and try again.');
@@ -103,7 +112,8 @@ const JoinEventScreen = ({navigation}) => {
       <View style={styles.container}>
         <View style={styles.headerCard}>
           <Text style={styles.title}>Join Event</Text>
-          <Text style={styles.subtitle}>Enter the quest code shown on the event screen.</Text>
+          <Text style={styles.subtitle}>Enter the event quest code (for example 16GV8F).</Text>
+          <Text style={styles.helperText}>Use the code shown on the event screen. Do not enter your API key here.</Text>
         </View>
 
         <View style={styles.formCard}>
@@ -121,6 +131,7 @@ const JoinEventScreen = ({navigation}) => {
               label="Quest Code"
               value={code}
               onChange={setCode}
+              placeholder="Example: 16GV8F"
               labelStyle={styles.inputLabel}
               inputStyle={styles.inputField}
             />
@@ -166,6 +177,11 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 15,
     color: '#d8bc87',
+    textAlign: 'center',
+  },
+  helperText: {
+    fontSize: 12,
+    color: '#e3cea2',
     textAlign: 'center',
   },
   inputLabel: {

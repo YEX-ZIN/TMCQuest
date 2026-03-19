@@ -24,7 +24,7 @@ const Form = ({children, onSubmit, onCancel, submitLabel, submitIcon, submitButt
   );
 };
 
-const InputText = ({label, value, onChange, secureTextEntry = false, labelStyle, inputStyle}) => {
+const InputText = ({label, value, onChange, secureTextEntry = false, labelStyle, inputStyle, placeholder = '', placeholderTextColor = '#9ca3af'}) => {
     // Initialisations ---------------------
     // State -------------------------------
     // Handlers ----------------------------
@@ -32,7 +32,14 @@ const InputText = ({label, value, onChange, secureTextEntry = false, labelStyle,
     return(
         <View style={styles.item}>
         <Text style={[styles.itemLabel, labelStyle]}>{label}</Text>
-        <TextInput value={value} onChangeText={onChange} style={[styles.itemTextInput, inputStyle]} secureTextEntry={secureTextEntry}/>
+                <TextInput
+                    value={value}
+                    onChangeText={onChange}
+                    style={[styles.itemTextInput, inputStyle]}
+                    secureTextEntry={secureTextEntry}
+                    placeholder={placeholder}
+                    placeholderTextColor={placeholderTextColor}
+                />
         </View>
     );
 };
