@@ -137,9 +137,31 @@ const EventCacheListScreen = ({navigation, route}) => {
   const [selectedCache, setSelectedCache] = useState(null);
   const [leaderboardRefreshKey, setLeaderboardRefreshKey] = useState(Date.now());
   const [evidenceByCache, setEvidenceByCache] = useState({});
+  const mapRef = useRef(null);
+  const hasCenteredOnOpenRef = useRef(false);
   const autoOpenedCameraByCacheRef = useRef({});
   // Handlers ----------------------------
-  const requestLocation = async () => {
+  const focusMapOnLocation = useCallback((coords, animated = true) => {
+    if (!coords || !mapRef.current) return;
+
+    const region = {
+      latitude: coords.latitude,
+      longitude: coords.longitude,
+      latitudeDelta: 0.05,
+      longitudeDelta: 0.05,
+    };
+
+    if (mapRef.current.animateToRegion) {
+      mapRef.current.animateToRegion(region, animated ? 500 : 0);
+      return;
+    }
+
+    if (mapRef.current.animateCamera) {
+      mapRef.current.animateCamera({ center: { latitude: coords.latitude, longitude: coords.longitude }, zoom: 16 }, { duration: animated ? 500 : 0 });
+    }
+  }, []);
+
+  const requestLocation = async (shouldCenterMap = false) => {
     setLocationLoading(true);
     const {status} = await Location.requestForegroundPermissionsAsync();
     if (status !== 'granted') {
@@ -149,13 +171,14 @@ const EventCacheListScreen = ({navigation, route}) => {
     }
     const loc = await Location.getCurrentPositionAsync({});
     setUserLocation(loc.coords);
+    if (shouldCenterMap) focusMapOnLocation(loc.coords, true);
     setLocationLoading(false);
   };
 
   const gotoLeaderboard = () => {
     navigation.navigate('EventLeaderboardScreen', {event, refreshKey: leaderboardRefreshKey});
   };
-  const recenterMap = () => requestLocation();
+  const recenterMap = () => requestLocation(true);
   const selectCache = (cache) => setSelectedCache(cache);
   const handleEvidenceCaptured = useCallback((payload) => {
     const cacheID = payload?.cacheID;
@@ -411,6 +434,11 @@ const EventCacheListScreen = ({navigation, route}) => {
   };
 
   useEffect(() => { requestLocation(); }, []);
+  useEffect(() => {
+    if (!userLocation || hasCenteredOnOpenRef.current) return;
+    focusMapOnLocation(userLocation, false);
+    hasCenteredOnOpenRef.current = true;
+  }, [userLocation, focusMapOnLocation]);
   useEffect(() => { if (isFocused) refreshEvidence(); }, [isFocused, refreshEvidence]);
   useEffect(() => {
     let mounted = true;
@@ -524,6 +552,7 @@ const EventCacheListScreen = ({navigation, route}) => {
       <StatusBar style='dark' />
 
       <MapView
+        ref={mapRef}
         style={styles.map}
         mapType={mapType}
         initialRegion={mapRegion}

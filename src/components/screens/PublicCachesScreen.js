@@ -53,7 +53,29 @@ const PublicCachesScreen = ({ navigation }) => {
   const [publicCaches, setPublicCaches] = useState([]);
   const [selectedCache, setSelectedCache] = useState(null);
   const [evidenceByCache, setEvidenceByCache] = useState({});
+  const mapRef = useRef(null);
+  const hasCenteredOnOpenRef = useRef(false);
   const autoOpenedCameraByCacheRef = useRef({});
+
+  const focusMapOnLocation = (coords, animated = true) => {
+    if (!coords || !mapRef.current) return;
+
+    const region = {
+      latitude: coords.latitude,
+      longitude: coords.longitude,
+      latitudeDelta: 0.15,
+      longitudeDelta: 0.15,
+    };
+
+    if (mapRef.current.animateToRegion) {
+      mapRef.current.animateToRegion(region, animated ? 500 : 0);
+      return;
+    }
+
+    if (mapRef.current.animateCamera) {
+      mapRef.current.animateCamera({ center: { latitude: coords.latitude, longitude: coords.longitude }, zoom: 14 }, { duration: animated ? 500 : 0 });
+    }
+  };
 
   const refreshEvidence = async () => {
     try {
@@ -79,7 +101,7 @@ const PublicCachesScreen = ({ navigation }) => {
     }));
   };
 
-  const requestLocation = async () => {
+  const requestLocation = async (shouldCenterMap = false) => {
     setLocationLoading(true);
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== 'granted') {
@@ -88,6 +110,7 @@ const PublicCachesScreen = ({ navigation }) => {
     }
     const loc = await Location.getCurrentPositionAsync({});
     setUserLocation(loc.coords);
+    if (shouldCenterMap) focusMapOnLocation(loc.coords, true);
     setLocationLoading(false);
   };
 
@@ -136,6 +159,12 @@ const PublicCachesScreen = ({ navigation }) => {
     requestLocation();
     loadPublicCaches();
   }, []);
+
+  useEffect(() => {
+    if (!userLocation || hasCenteredOnOpenRef.current) return;
+    focusMapOnLocation(userLocation, false);
+    hasCenteredOnOpenRef.current = true;
+  }, [userLocation]);
 
   useEffect(() => {
     if (isFocused) refreshEvidence();
@@ -279,6 +308,7 @@ const PublicCachesScreen = ({ navigation }) => {
       <StatusBar style='dark' />
 
       <MapView
+        ref={mapRef}
         style={styles.map}
         mapType={Platform.OS === 'ios' ? 'hybridFlyover' : 'hybrid'}
         initialRegion={mapRegion}
@@ -372,7 +402,7 @@ const PublicCachesScreen = ({ navigation }) => {
             <Button
               label=''
               icon={<Icons.MyLocation color='white' />}
-              onClick={requestLocation}
+              onClick={() => requestLocation(true)}
               styleButton={[styles.actionButton, styles.locationButton]}
               styleLabel={styles.actionLabel}
             />
