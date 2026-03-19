@@ -13,6 +13,17 @@ const normaliseList = (result) => {
   return [];
 };
 
+const getPlayerID = (find) => find.FindPlayerID || find.FindPlayerId || find.FindPlayer?.PlayerID || find.FindPlayer?.PlayerId;
+const getCacheID = (cache) => cache?.CacheID || cache?.CacheId || cache?.id || null;
+const getFindCacheID = (find) => find.FindCacheID || find.FindCacheId || find.FindCache?.CacheID || find.FindCache?.CacheId || null;
+const getCachePoints = (find, cachePointsByID) => {
+  const nestedPoints = Number(find.FindCache?.CachePoints || find.FindCache?.Cachepoints);
+  if (Number.isFinite(nestedPoints)) return nestedPoints;
+  const cacheID = getFindCacheID(find);
+  if (cacheID === null || cacheID === undefined) return 0;
+  return Number(cachePointsByID[String(cacheID)] || 0);
+};
+
 const EventLeaderboardScreen = ({navigation, route}) => {
   // Initialisations ---------------------
   const {event} = route.params;
@@ -33,18 +44,27 @@ const EventLeaderboardScreen = ({navigation, route}) => {
       }
 
       setLoading(true);
-      const [playersResponse, findsResponse] = await Promise.all([
+      const [playersResponse, findsResponse, cachesResponse] = await Promise.all([
         API.get(API.geoQuest.playersByEvent(eventID)),
         API.get(API.geoQuest.findsByEvent(eventID)),
+        API.get(API.geoQuest.cachesByEvent(eventID)),
       ]);
 
       const players = normaliseList(playersResponse.result);
       const finds = normaliseList(findsResponse.result);
+      const caches = normaliseList(cachesResponse.result);
+
+      const cachePointsByID = caches.reduce((acc, cache) => {
+        const cacheID = getCacheID(cache);
+        if (cacheID === null || cacheID === undefined) return acc;
+        acc[String(cacheID)] = Number(cache.CachePoints || cache.Cachepoints || 0);
+        return acc;
+      }, {});
 
       const scoreByPlayer = finds.reduce((acc, find) => {
-        const playerID = find.FindPlayerID || find.FindPlayer?.PlayerID;
+        const playerID = getPlayerID(find);
         if (!playerID) return acc;
-        acc[playerID] = (acc[playerID] || 0) + (find.FindCache?.CachePoints || 0);
+        acc[playerID] = (acc[playerID] || 0) + getCachePoints(find, cachePointsByID);
         return acc;
       }, {});
 

@@ -1,12 +1,14 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Linking, Platform, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Image, Linking, Platform, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
+import { useIsFocused } from '@react-navigation/native';
 import { Button } from '../UI/Button';
 import Icons from '../UI/Icons';
 import API from '../API/API';
 import useCurrentUser from '../store/useCurrentUser';
+import { loadEvidenceMap } from '../store/evidenceStore';
 
 const normaliseList = (result) => {
   if (!result) return [];
@@ -22,6 +24,14 @@ const getID = (obj, ...fields) => {
   }
   return null;
 };
+
+const getCacheID = (cache) => getID(cache, 'CacheID', 'CacheId', 'id');
+const getPlayerID = (player) => getID(player, 'PlayerID', 'PlayerId', 'id');
+const getFindCacheID = (find) => getID(find, 'FindCacheID', 'FindCacheId', 'CacheID', 'CacheId') || getCacheID(find?.FindCache) || getCacheID(find);
+
+const DISCOVERY_RADIUS_METERS = 30;
+const AUTO_CAMERA_RADIUS_METERS = 100;
+const AUTO_CAMERA_RESET_RADIUS_METERS = 130;
 
 const normaliseCreatedID = (result, keyName) => {
   if (result === null || result === undefined) return null;
@@ -59,6 +69,7 @@ const encodeQuestCode = (value) => {
 
 const EventCacheListScreen = ({navigation, route}) => {
   // Initialisations ---------------------
+  const isFocused = useIsFocused();
   const isHost = route.params?.isHost === true;
   const [currentUser] = useCurrentUser();
   // State -------------------------------
@@ -100,6 +111,8 @@ const EventCacheListScreen = ({navigation, route}) => {
   const [locationLoading, setLocationLoading] = useState(true);
   const [selectedCache, setSelectedCache] = useState(null);
   const [leaderboardRefreshKey, setLeaderboardRefreshKey] = useState(Date.now());
+  const [evidenceByCache, setEvidenceByCache] = useState({});
+  const autoOpenedCameraByCacheRef = useRef({});
   // Handlers ----------------------------
   const requestLocation = async () => {
     setLocationLoading(true);
@@ -119,6 +132,29 @@ const EventCacheListScreen = ({navigation, route}) => {
   };
   const recenterMap = () => requestLocation();
   const selectCache = (cache) => setSelectedCache(cache);
+  const handleEvidenceCaptured = useCallback((payload) => {
+    const cacheID = payload?.cacheID;
+    const uri = payload?.uri;
+    if (cacheID === null || cacheID === undefined || !uri) return;
+
+    setEvidenceByCache((prev) => ({
+      ...prev,
+      [String(cacheID)]: {
+        uri,
+        capturedAt: payload?.capturedAt || new Date().toISOString(),
+      },
+    }));
+  }, []);
+
+  const refreshEvidence = useCallback(async () => {
+    try {
+      const evidenceMap = await loadEvidenceMap();
+      setEvidenceByCache(evidenceMap);
+    } catch (error) {
+      // Ignore evidence read failures to avoid interrupting gameplay.
+    }
+  }, []);
+
   const loadEventCaches = useCallback(async () => {
     const eventID = event.EventID || event.EventId || event.id;
     if (!eventID) return;
@@ -168,7 +204,7 @@ const EventCacheListScreen = ({navigation, route}) => {
         && String(player.PlayerEventID) === String(eventID),
     );
 
-    const playerID = getID(playerRecord, 'PlayerID', 'PlayerId', 'id');
+    const playerID = getPlayerID(playerRecord);
     if (!playerID) {
       setFoundCacheLookup({});
       return;
@@ -181,7 +217,7 @@ const EventCacheListScreen = ({navigation, route}) => {
     }
 
     const lookup = normaliseList(findsResponse.result).reduce((acc, find) => {
-      const cacheID = getID(find, 'FindCacheID') || getID(find.FindCache, 'CacheID', 'CacheId', 'id');
+      const cacheID = getFindCacheID(find);
       if (cacheID !== null && cacheID !== undefined) acc[String(cacheID)] = true;
       return acc;
     }, {});
@@ -226,10 +262,43 @@ const EventCacheListScreen = ({navigation, route}) => {
     }
 
     const eventID = getID(event, 'EventID', 'EventId', 'id');
-    const cacheID = getID(selectedCache, 'CacheID', 'CacheId', 'id');
+    const cacheID = getCacheID(selectedCache);
 
-    if (!selectedCache || !cacheID || !eventID) {
+    if (!selectedCache || cacheID === null || cacheID === undefined || eventID === null || eventID === undefined) {
       Alert.alert('Select A Cache', 'Tap a cache marker before logging a discovery.');
+      return;
+    }
+
+    const cacheLatitude = selectedCache.CacheLatitude ?? selectedCache.CacheLat;
+    const cacheLongitude = selectedCache.CacheLongitude ?? selectedCache.CacheLng;
+    if (cacheLatitude === undefined || cacheLatitude === null || cacheLongitude === undefined || cacheLongitude === null) {
+      Alert.alert('Log Failed', 'This cache does not have valid coordinates.');
+      return;
+    }
+
+    let latestCoords = userLocation;
+    if (!latestCoords) {
+      const latestLocation = await Location.getCurrentPositionAsync({});
+      latestCoords = latestLocation?.coords || null;
+      if (latestCoords) setUserLocation(latestCoords);
+    }
+
+    if (!latestCoords) {
+      Alert.alert('Location Required', 'Your location is needed to unlock and log this cache.');
+      return;
+    }
+
+    const metersAway = distanceInMeters(
+      latestCoords.latitude,
+      latestCoords.longitude,
+      cacheLatitude,
+      cacheLongitude,
+    );
+    if (!Number.isFinite(metersAway) || metersAway > DISCOVERY_RADIUS_METERS) {
+      Alert.alert(
+        'Too Far Away',
+        `Move within ${DISCOVERY_RADIUS_METERS} meters to unlock this cache. You are ${formatDistance(metersAway)}.`,
+      );
       return;
     }
 
@@ -264,7 +333,7 @@ const EventCacheListScreen = ({navigation, route}) => {
       playerRecord = { PlayerID: createdPlayerID, PlayerUserID: currentUser.UserID, PlayerEventID: eventID };
     }
 
-    const playerID = getID(playerRecord, 'PlayerID', 'PlayerId', 'id');
+    const playerID = getPlayerID(playerRecord);
     if (!playerID) {
       setIsLoggingFind(false);
       Alert.alert('Log Failed', 'Could not resolve your player record for this event.');
@@ -279,18 +348,33 @@ const EventCacheListScreen = ({navigation, route}) => {
     }
 
     const existingFinds = normaliseList(findsResponse.result);
-    const alreadyFound = existingFinds.some((find) => String(find.FindCacheID) === String(cacheID));
+    const alreadyFound = existingFinds.some((find) => {
+      const findCacheID = getFindCacheID(find);
+      return String(findCacheID) === String(cacheID);
+    });
     if (alreadyFound) {
       setIsLoggingFind(false);
       Alert.alert('Already Logged', 'You already discovered this cache.');
       return;
     }
 
-    const createFindResponse = await API.post(API.geoQuest.finds(), {
+    const evidenceURI = evidenceByCache[String(cacheID)]?.uri || '';
+    const payload = {
       FindPlayerID: playerID,
       FindCacheID: cacheID,
       FindDatetime: new Date().toISOString(),
-    });
+    };
+    if (evidenceURI) payload.FindEvidenceURL = evidenceURI;
+
+    let createFindResponse = await API.post(API.geoQuest.finds(), payload);
+    if (!createFindResponse.isSuccess && evidenceURI) {
+      const fallbackPayload = {
+        FindPlayerID: playerID,
+        FindCacheID: cacheID,
+        FindDatetime: payload.FindDatetime,
+      };
+      createFindResponse = await API.post(API.geoQuest.finds(), fallbackPayload);
+    }
 
     setIsLoggingFind(false);
 
@@ -310,8 +394,66 @@ const EventCacheListScreen = ({navigation, route}) => {
   };
 
   useEffect(() => { requestLocation(); }, []);
+  useEffect(() => { if (isFocused) refreshEvidence(); }, [isFocused, refreshEvidence]);
+  useEffect(() => {
+    let mounted = true;
+    let watcher = null;
+
+    const startWatcher = async () => {
+      const {status} = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted' || !mounted) return;
+
+      watcher = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.BestForNavigation,
+          timeInterval: 1200,
+          distanceInterval: 1,
+        },
+        (location) => {
+          if (!mounted) return;
+          setUserLocation(location.coords);
+          setLocationLoading(false);
+        },
+      );
+    };
+
+    startWatcher();
+
+    return () => {
+      mounted = false;
+      watcher?.remove?.();
+    };
+  }, []);
   useEffect(() => { loadEventCaches(); }, [loadEventCaches]);
   useEffect(() => { loadFoundCachesForCurrentPlayer(); }, [loadFoundCachesForCurrentPlayer]);
+
+  useEffect(() => {
+    if (!isFocused || !selectedCache || !userLocation) return;
+
+    const cacheID = getCacheID(selectedCache);
+    const cacheKey = String(cacheID ?? `${selectedCache.CacheLatitude ?? selectedCache.CacheLat}-${selectedCache.CacheLongitude ?? selectedCache.CacheLng}`);
+    const latitude = selectedCache.CacheLatitude ?? selectedCache.CacheLat;
+    const longitude = selectedCache.CacheLongitude ?? selectedCache.CacheLng;
+    if (latitude === undefined || latitude === null || longitude === undefined || longitude === null) return;
+
+    const meters = distanceInMeters(userLocation.latitude, userLocation.longitude, latitude, longitude);
+    const alreadyOpened = autoOpenedCameraByCacheRef.current[cacheKey] === true;
+
+    if (Number.isFinite(meters) && meters <= AUTO_CAMERA_RADIUS_METERS && !alreadyOpened) {
+      autoOpenedCameraByCacheRef.current[cacheKey] = true;
+      navigation.navigate('ARCameraNavigatorScreen', {
+        cache: selectedCache,
+        event,
+        discoveryRadiusMeters: DISCOVERY_RADIUS_METERS,
+        onEvidenceCaptured: handleEvidenceCaptured,
+      });
+      return;
+    }
+
+    if (Number.isFinite(meters) && meters > AUTO_CAMERA_RESET_RADIUS_METERS && alreadyOpened) {
+      autoOpenedCameraByCacheRef.current[cacheKey] = false;
+    }
+  }, [isFocused, selectedCache, userLocation, navigation, event, handleEvidenceCaptured]);
 
   const selectedDistanceText = useMemo(() => {
     if (!selectedCache || !userLocation) return '';
@@ -319,8 +461,20 @@ const EventCacheListScreen = ({navigation, route}) => {
     const longitude = selectedCache.CacheLongitude ?? selectedCache.CacheLng;
     if (latitude === undefined || latitude === null || longitude === undefined || longitude === null) return '';
     const meters = distanceInMeters(userLocation.latitude, userLocation.longitude, latitude, longitude);
+    if (meters <= AUTO_CAMERA_RADIUS_METERS) return `Camera AR zone: ${Math.round(meters)} m`;
+    if (meters <= DISCOVERY_RADIUS_METERS) return `Unlocked: ${Math.round(meters)} m`;
     return formatDistance(meters);
   }, [selectedCache, userLocation]);
+  const selectedEvidenceText = useMemo(() => {
+    const cacheID = getCacheID(selectedCache);
+    if (cacheID === null || cacheID === undefined) return '';
+    return evidenceByCache[String(cacheID)] ? 'Evidence captured' : 'No evidence photo yet';
+  }, [selectedCache, evidenceByCache]);
+  const selectedEvidenceURI = useMemo(() => {
+    const cacheID = getCacheID(selectedCache);
+    if (cacheID === null || cacheID === undefined) return '';
+    return evidenceByCache[String(cacheID)]?.uri || '';
+  }, [selectedCache, evidenceByCache]);
   // View --------------------------------
   const defaultRegion = {
     latitude: 51.5074,
@@ -368,9 +522,12 @@ const EventCacheListScreen = ({navigation, route}) => {
         toolbarEnabled={false}
         onLongPress={handleMapLongPress}
       >
-        {eventCaches.map((cache) => (
+        {eventCaches.map((cache, index) => {
+          const cacheID = getCacheID(cache);
+          const selectedCacheID = getCacheID(selectedCache);
+          return (
           <Marker
-            key={cache.CacheID}
+            key={cacheID ?? `${cache.CacheName || 'cache'}-${index}`}
             coordinate={{
               latitude: cache.CacheLatitude ?? cache.CacheLat,
               longitude: cache.CacheLongitude ?? cache.CacheLng,
@@ -378,13 +535,14 @@ const EventCacheListScreen = ({navigation, route}) => {
             title={cache.CacheName}
             description={cache.CacheClue}
             pinColor={
-              selectedCache?.CacheID === cache.CacheID
+              selectedCacheID !== null && selectedCacheID !== undefined && String(selectedCacheID) === String(cacheID)
                 ? 'blue'
-                : (foundCacheLookup[String(cache.CacheID)] ? 'green' : 'red')
+                : (foundCacheLookup[String(cacheID)] ? 'green' : 'red')
             }
             onPress={() => selectCache(cache)}
           />
-        ))}
+          );
+        })}
       </MapView>
 
       <View style={styles.topOverlay}>
@@ -447,7 +605,14 @@ const EventCacheListScreen = ({navigation, route}) => {
           </View>
           <View style={styles.selectedRow}>
             <Text style={styles.selectedSubMeta}>{selectedDistanceText || 'Distance will show after selecting a cache'}</Text>
+            {selectedCache ? <Text style={styles.selectedEvidenceMeta}>{selectedEvidenceText}</Text> : null}
           </View>
+          {selectedEvidenceURI ? (
+            <View style={styles.evidencePreviewRow}>
+              <Image source={{ uri: selectedEvidenceURI }} style={styles.evidencePreviewImage} />
+              <Text style={styles.evidencePreviewText}>Saved evidence photo</Text>
+            </View>
+          ) : null}
           <View style={styles.actionRow}>
             <Button
               label=''
@@ -659,6 +824,31 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     flex: 1,
+  },
+  selectedEvidenceMeta: {
+    color: '#7af4a5',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  evidencePreviewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+    paddingHorizontal: 2,
+  },
+  evidencePreviewImage: {
+    width: 34,
+    height: 34,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.45)',
+    backgroundColor: 'rgba(0,0,0,0.2)',
+  },
+  evidencePreviewText: {
+    color: '#d6f7e2',
+    fontSize: 11,
+    fontWeight: '600',
   },
   actionRow: {
     flexDirection: 'row',

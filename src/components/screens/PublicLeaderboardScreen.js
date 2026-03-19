@@ -21,6 +21,9 @@ const isPublicEvent = (event) => {
   return false;
 };
 
+const getCacheID = (cache) => cache?.CacheID || cache?.CacheId || cache?.id || null;
+const getFindCacheID = (find) => find.FindCacheID || find.FindCacheId || find.FindCache?.CacheID || find.FindCache?.CacheId || null;
+
 const PublicLeaderboardScreen = () => {
   const [ranked, setRanked] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -30,13 +33,14 @@ const PublicLeaderboardScreen = () => {
       const loadLeaderboard = async () => {
         setLoading(true);
 
-        const [eventsResponse, playersResponse, findsResponse] = await Promise.all([
+        const [eventsResponse, playersResponse, findsResponse, cachesResponse] = await Promise.all([
           API.get(API.geoQuest.events()),
           API.get(API.geoQuest.players()),
           API.get(API.geoQuest.finds()),
+          API.get(API.geoQuest.caches()),
         ]);
 
-        if (!eventsResponse.isSuccess || !playersResponse.isSuccess || !findsResponse.isSuccess) {
+        if (!eventsResponse.isSuccess || !playersResponse.isSuccess || !findsResponse.isSuccess || !cachesResponse.isSuccess) {
           setRanked([]);
           setLoading(false);
           return;
@@ -45,6 +49,14 @@ const PublicLeaderboardScreen = () => {
         const events = normaliseList(eventsResponse.result);
         const players = normaliseList(playersResponse.result);
         const finds = normaliseList(findsResponse.result);
+        const caches = normaliseList(cachesResponse.result);
+
+        const cachePointsByID = caches.reduce((acc, cache) => {
+          const cacheID = getCacheID(cache);
+          if (cacheID === null || cacheID === undefined) return acc;
+          acc[String(cacheID)] = Number(cache.CachePoints || cache.Cachepoints || 0);
+          return acc;
+        }, {});
 
         const publicEventIDs = new Set(
           events
@@ -58,7 +70,11 @@ const PublicLeaderboardScreen = () => {
         const pointsByPlayer = finds.reduce((acc, find) => {
           const playerID = String(find.FindPlayerID || find.FindPlayer?.PlayerID || '');
           if (!publicPlayerIDs.has(playerID)) return acc;
-          const points = Number(find.FindCache?.CachePoints || 0);
+          const nestedPoints = Number(find.FindCache?.CachePoints || find.FindCache?.Cachepoints);
+          const cacheID = getFindCacheID(find);
+          const points = Number.isFinite(nestedPoints)
+            ? nestedPoints
+            : Number(cachePointsByID[String(cacheID)] || 0);
           acc[playerID] = (acc[playerID] || 0) + points;
           return acc;
         }, {});

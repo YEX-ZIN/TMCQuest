@@ -1,4 +1,4 @@
-import { Alert, Pressable, StyleSheet, Text, View, ScrollView, ActivityIndicator } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View, ScrollView, ActivityIndicator, ImageBackground } from 'react-native';
 import { useEffect, useState, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
@@ -15,12 +15,24 @@ const normaliseList = (r) => {
   return [];
 };
 
+const getFindPlayerID = (find) => find.FindPlayerID || find.FindPlayerId || find.FindPlayer?.PlayerID || find.FindPlayer?.PlayerId;
+const getCacheID = (cache) => cache?.CacheID || cache?.CacheId || cache?.id || null;
+const getFindCacheID = (find) => find.FindCacheID || find.FindCacheId || find.FindCache?.CacheID || find.FindCache?.CacheId || null;
+const getFindPoints = (find, cachePointsByID) => {
+  const nestedPoints = Number(find.FindCache?.CachePoints || find.FindCache?.Cachepoints);
+  if (Number.isFinite(nestedPoints)) return nestedPoints;
+  const cacheID = getFindCacheID(find);
+  if (cacheID === null || cacheID === undefined) return 0;
+  return Number(cachePointsByID[String(cacheID)] || 0);
+};
+
 const DashboardScreen = ({navigation}) => {
   // Initialisations ---------------------
   // State -------------------------------
   const [currentUser, saveCurrentUser] = useCurrentUser();
   const [quests, setQuests] = useState([]);
   const [questsLoading, setQuestsLoading] = useState(true);
+  const captainName = currentUser?.UserFirstname || currentUser?.UserUsername || 'Explorer';
 
   const loadQuests = useCallback(async () => {
     if (!currentUser?.UserID) {
@@ -30,15 +42,24 @@ const DashboardScreen = ({navigation}) => {
     }
 
     setQuestsLoading(true);
-    const [eventsRes, playersRes, findsRes] = await Promise.all([
+    const [eventsRes, playersRes, findsRes, cachesRes] = await Promise.all([
       API.get(API.geoQuest.events()),
       API.get(API.geoQuest.players()),
       API.get(API.geoQuest.finds()),
+      API.get(API.geoQuest.caches()),
     ]);
 
     const allEvents = normaliseList(eventsRes.result);
     const allPlayers = normaliseList(playersRes.result);
     const allFinds = normaliseList(findsRes.result);
+    const allCaches = normaliseList(cachesRes.result);
+
+    const cachePointsByID = allCaches.reduce((acc, cache) => {
+      const cacheID = getCacheID(cache);
+      if (cacheID === null || cacheID === undefined) return acc;
+      acc[String(cacheID)] = Number(cache.CachePoints || cache.Cachepoints || 0);
+      return acc;
+    }, {});
 
     // Hosted events
     const hostedEvents = allEvents
@@ -55,8 +76,8 @@ const DashboardScreen = ({navigation}) => {
         if (!event) return null;
         // Sum points for finds made by this player
         const score = allFinds
-          .filter(f => String(f.FindPlayerID) === String(p.PlayerID))
-          .reduce((sum, f) => sum + (f.FindCache?.CachePoints || 0), 0);
+          .filter(f => String(getFindPlayerID(f)) === String(p.PlayerID))
+          .reduce((sum, f) => sum + getFindPoints(f, cachePointsByID), 0);
         return { ...event, _role: 'player', _score: score, _playerID: p.PlayerID };
       })
       .filter(Boolean);
@@ -135,8 +156,15 @@ const DashboardScreen = ({navigation}) => {
   };
   // View --------------------------------
   return (
-    <View style={styles.screen}>
+    <ImageBackground
+      source={require('../../assets/logo.png')}
+      style={styles.screen}
+      imageStyle={styles.backgroundLogo}
+      resizeMode='cover'
+      blurRadius={15}
+    >
       <StatusBar style='light' />
+      <View style={styles.overlay} />
       <ScrollView 
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -148,19 +176,35 @@ const DashboardScreen = ({navigation}) => {
         </View>
 
         <View style={styles.header}>
-          <Text style={styles.title}>TMCQuest</Text>
-          <Text style={styles.subtitle}>Choose your adventure</Text>
+          <View style={styles.heroCard}>
+            <View style={styles.heroBadge}>
+              <Text style={styles.heroBadgeText}>QUEST COMMAND DECK</Text>
+            </View>
+            <Text style={styles.title}>TMCQuest</Text>
+            <Text style={styles.subtitle}>Treasure routes, hidden caches, and leaderboard glory.</Text>
+            <Text style={styles.captainLine}>Captain: {captainName}</Text>
+          </View>
         </View>
 
         <View style={styles.cardsContainer}>
           <View style={styles.card}>
-            <View style={styles.cardIcon}>
-              <Icons.Map />
+            <View style={styles.cardTopRow}>
+              <View style={styles.cardIcon}>
+                <Icons.Map />
+              </View>
+              <View style={styles.cardBadge}>
+                <Text style={styles.cardBadgeText}>PRIVATE MODE</Text>
+              </View>
             </View>
             <Text style={styles.cardTitle}>Create an Event</Text>
             <Text style={styles.cardDesc}>
               Set up a private treasure hunt for your group. Place caches, set a time window, and share an invite code.
             </Text>
+            <View style={styles.cardMetaRow}>
+              <View style={styles.metaPill}><Text style={styles.metaPillText}>Set time window</Text></View>
+              <View style={styles.metaPill}><Text style={styles.metaPillText}>Share code</Text></View>
+              <View style={styles.metaPill}><Text style={styles.metaPillText}>Track players</Text></View>
+            </View>
             <Button
               label="Create Event"
               icon={<Icons.Add />}
@@ -171,13 +215,23 @@ const DashboardScreen = ({navigation}) => {
           </View>
 
           <View style={styles.card}>
-            <View style={styles.cardIcon}>
-              <Icons.Key />
+            <View style={styles.cardTopRow}>
+              <View style={styles.cardIcon}>
+                <Icons.Key />
+              </View>
+              <View style={styles.cardBadge}>
+                <Text style={styles.cardBadgeText}>PLAYER MODE</Text>
+              </View>
             </View>
             <Text style={styles.cardTitle}>Join an Event</Text>
             <Text style={styles.cardDesc}>
               Have an invite code? Jump into an existing hunt and compete on the leaderboard.
             </Text>
+            <View style={styles.cardMetaRow}>
+              <View style={styles.metaPill}><Text style={styles.metaPillText}>Enter code</Text></View>
+              <View style={styles.metaPill}><Text style={styles.metaPillText}>Find caches</Text></View>
+              <View style={styles.metaPill}><Text style={styles.metaPillText}>Earn points</Text></View>
+            </View>
             <Button
               label="Join Event"
               icon={<Icons.Submit />}
@@ -188,13 +242,23 @@ const DashboardScreen = ({navigation}) => {
           </View>
 
           <View style={styles.card}>
-            <View style={styles.cardIcon}>
-              <Icons.Map />
+            <View style={styles.cardTopRow}>
+              <View style={styles.cardIcon}>
+                <Icons.Map />
+              </View>
+              <View style={styles.cardBadge}>
+                <Text style={styles.cardBadgeText}>GLOBAL MODE</Text>
+              </View>
             </View>
             <Text style={styles.cardTitle}>Public World</Text>
             <Text style={styles.cardDesc}>
               View all public caches on a shared map, navigate to them, and open the event to log discoveries.
             </Text>
+            <View style={styles.cardMetaRow}>
+              <View style={styles.metaPill}><Text style={styles.metaPillText}>Shared map</Text></View>
+              <View style={styles.metaPill}><Text style={styles.metaPillText}>AR nearby</Text></View>
+              <View style={styles.metaPill}><Text style={styles.metaPillText}>Public ranks</Text></View>
+            </View>
             <Button
               label="Explore Public Caches"
               icon={<Icons.Map color='#5c3b10' />}
@@ -254,7 +318,7 @@ const DashboardScreen = ({navigation}) => {
           )}
         </View>
       </ScrollView>
-    </View>
+    </ImageBackground>
   );
 };
 
@@ -263,51 +327,92 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0d0a04',
   },
+  backgroundLogo: {
+    opacity: 0.35,
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(11,7,3,0.72)',
+  },
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: 20,
-    paddingTop: 90,
+    paddingTop: 76,
     paddingBottom: 28,
-    gap: 10,
+    gap: 12,
   },
   topBar: {
     width: '100%',
     alignItems: 'flex-end',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   profileIconWrap: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    borderWidth: 1,
-    borderColor: '#c4903a',
-    backgroundColor: '#261a0a',
+    borderWidth: 1.5,
+    borderColor: '#d6a34d',
+    backgroundColor: 'rgba(38,26,10,0.92)',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 3,
   },
   header: {
-    alignItems: 'center',
-    gap: 4,
-    marginBottom: 16,
+    marginBottom: 2,
+  },
+  heroCard: {
+    borderRadius: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderWidth: 1.5,
+    borderColor: '#bf8c38',
+    backgroundColor: 'rgba(45,29,13,0.84)',
+    gap: 6,
+  },
+  heroBadge: {
+    alignSelf: 'flex-start',
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#dfb86b',
+    backgroundColor: 'rgba(212,168,67,0.18)',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+  },
+  heroBadgeText: {
+    color: '#f2d18c',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.7,
   },
   title: {
-    fontSize: 38,
+    fontSize: 36,
     fontWeight: 'bold',
     color: '#f0d080',
     letterSpacing: 1,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#b89a68',
+    fontSize: 14,
+    color: '#d2b787',
+    lineHeight: 20,
+  },
+  captainLine: {
+    marginTop: 2,
+    color: '#efcb84',
+    fontSize: 12,
+    fontWeight: '700',
   },
   cardsContainer: {
-    gap: 12,
+    gap: 14,
   },
   card: {
-    backgroundColor: 'rgba(246,231,194,0.95)',
+    backgroundColor: 'rgba(246,231,194,0.96)',
     borderRadius: 14,
     padding: 20,
-    gap: 10,
+    gap: 9,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -317,6 +422,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#c4903a',
   },
+  cardTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 2,
+    gap: 8,
+  },
   cardIcon: {
     width: 44,
     height: 44,
@@ -324,7 +436,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#f3e4c6',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 2,
+  },
+  cardBadge: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#d2ac63',
+    backgroundColor: '#f6ead0',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  cardBadgeText: {
+    color: '#5c3b10',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   cardTitle: {
     fontSize: 20,
@@ -334,17 +459,36 @@ const styles = StyleSheet.create({
   cardDesc: {
     fontSize: 14,
     color: '#6b4e2a',
-    lineHeight: 20,
-    marginBottom: 2,
+    lineHeight: 19,
+  },
+  cardMetaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 2,
+  },
+  metaPill: {
+    borderRadius: 999,
+    backgroundColor: '#f0dfb8',
+    borderWidth: 1,
+    borderColor: '#d8b878',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  metaPillText: {
+    color: '#6b4a1b',
+    fontSize: 11,
+    fontWeight: '700',
   },
   primaryButton: {
     backgroundColor: '#c4903a',
     borderColor: '#f0d080',
     borderWidth: 1,
     flex: 0,
-    marginTop: 6,
+    marginTop: 8,
     borderRadius: 10,
     minHeight: 50,
+    paddingHorizontal: 12,
   },
   primaryLabel: {
     color: '#1a1105',
@@ -356,9 +500,10 @@ const styles = StyleSheet.create({
     borderColor: '#8a6224',
     borderWidth: 1.5,
     flex: 0,
-    marginTop: 6,
+    marginTop: 8,
     borderRadius: 10,
     minHeight: 50,
+    paddingHorizontal: 12,
   },
   secondaryLabel: {
     color: '#5c3b10',
@@ -370,9 +515,10 @@ const styles = StyleSheet.create({
     borderColor: '#8a6224',
     borderWidth: 1.5,
     flex: 0,
-    marginTop: 6,
+    marginTop: 8,
     borderRadius: 10,
     minHeight: 50,
+    paddingHorizontal: 12,
   },
   tertiaryLabel: {
     color: '#5c3b10',
@@ -383,7 +529,12 @@ const styles = StyleSheet.create({
   // --- Quest list ---
   questSection: {
     gap: 8,
-    marginTop: 6,
+    marginTop: 8,
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(202,147,67,0.42)',
+    backgroundColor: 'rgba(30,20,10,0.7)',
   },
   questHeadRow: {
     flexDirection: 'row',

@@ -1,11 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Linking, Platform, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Image, Linking, Platform, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
+import { useIsFocused } from '@react-navigation/native';
 import API from '../API/API';
 import Icons from '../UI/Icons';
 import { Button } from '../UI/Button';
+import { loadEvidenceMap } from '../store/evidenceStore';
 
 const normaliseList = (result) => {
   if (!result) return [];
@@ -14,6 +16,25 @@ const normaliseList = (result) => {
   if (Array.isArray(result.result)) return result.result;
   return [];
 };
+
+const AUTO_CAMERA_RADIUS_METERS = 100;
+const AUTO_CAMERA_RESET_RADIUS_METERS = 130;
+
+const toRadians = (degrees) => degrees * (Math.PI / 180);
+const distanceInMeters = (fromLat, fromLng, toLat, toLng) => {
+  const earthRadius = 6371000;
+  const deltaLat = toRadians(toLat - fromLat);
+  const deltaLng = toRadians(toLng - fromLng);
+  const lat1 = toRadians(fromLat);
+  const lat2 = toRadians(toLat);
+
+  const a = Math.sin(deltaLat / 2) ** 2
+    + Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLng / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return earthRadius * c;
+};
+
+const getCacheID = (cache) => cache?.CacheID ?? cache?.CacheId ?? cache?.id;
 
 const isPublicEvent = (event) => {
   const value = event?.EventIspublic;
@@ -24,12 +45,39 @@ const isPublicEvent = (event) => {
 };
 
 const PublicCachesScreen = ({ navigation }) => {
+  const isFocused = useIsFocused();
   const [userLocation, setUserLocation] = useState(null);
   const [locationLoading, setLocationLoading] = useState(true);
   const [loading, setLoading] = useState(true);
   const [publicEventsByID, setPublicEventsByID] = useState({});
   const [publicCaches, setPublicCaches] = useState([]);
   const [selectedCache, setSelectedCache] = useState(null);
+  const [evidenceByCache, setEvidenceByCache] = useState({});
+  const autoOpenedCameraByCacheRef = useRef({});
+
+  const refreshEvidence = async () => {
+    try {
+      const evidenceMap = await loadEvidenceMap();
+      setEvidenceByCache(evidenceMap);
+    } catch (error) {
+      // Ignore evidence read failures to avoid blocking map usage.
+    }
+  };
+
+  const handleEvidenceCaptured = (payload) => {
+    const cacheID = payload?.cacheID;
+    const uri = payload?.uri;
+    if (cacheID === null || cacheID === undefined || !uri) return;
+
+    setEvidenceByCache((prev) => ({
+      ...prev,
+      [String(cacheID)]: {
+        uri,
+        capturedAt: payload?.capturedAt || new Date().toISOString(),
+        isPublic: true,
+      },
+    }));
+  };
 
   const requestLocation = async () => {
     setLocationLoading(true);
@@ -88,6 +136,68 @@ const PublicCachesScreen = ({ navigation }) => {
     requestLocation();
     loadPublicCaches();
   }, []);
+
+  useEffect(() => {
+    if (isFocused) refreshEvidence();
+  }, [isFocused]);
+
+  useEffect(() => {
+    let mounted = true;
+    let watcher = null;
+
+    const startWatcher = async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted' || !mounted) return;
+
+      watcher = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.BestForNavigation,
+          timeInterval: 1200,
+          distanceInterval: 1,
+        },
+        (position) => {
+          if (!mounted) return;
+          setUserLocation(position.coords);
+          setLocationLoading(false);
+        },
+      );
+    };
+
+    startWatcher();
+
+    return () => {
+      mounted = false;
+      watcher?.remove?.();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isFocused || !selectedCache || !userLocation) return;
+
+    const cacheID = getCacheID(selectedCache);
+    const cacheKey = String(cacheID ?? `${selectedCache.CacheLatitude ?? selectedCache.CacheLat}-${selectedCache.CacheLongitude ?? selectedCache.CacheLng}`);
+    const latitude = selectedCache.CacheLatitude ?? selectedCache.CacheLat;
+    const longitude = selectedCache.CacheLongitude ?? selectedCache.CacheLng;
+    if (latitude === undefined || latitude === null || longitude === undefined || longitude === null) return;
+
+    const meters = distanceInMeters(userLocation.latitude, userLocation.longitude, latitude, longitude);
+    const alreadyOpened = autoOpenedCameraByCacheRef.current[cacheKey] === true;
+
+    if (Number.isFinite(meters) && meters <= AUTO_CAMERA_RADIUS_METERS && !alreadyOpened) {
+      autoOpenedCameraByCacheRef.current[cacheKey] = true;
+      navigation.navigate('ARCameraNavigatorScreen', {
+        cache: selectedCache,
+        discoveryRadiusMeters: 30,
+        isPublic: true,
+        onEvidenceCaptured: handleEvidenceCaptured,
+      });
+      return;
+    }
+
+    if (Number.isFinite(meters) && meters > AUTO_CAMERA_RESET_RADIUS_METERS && alreadyOpened) {
+      autoOpenedCameraByCacheRef.current[cacheKey] = false;
+    }
+  }, [isFocused, navigation, selectedCache, userLocation]);
 
   const defaultRegion = {
     latitude: 51.5074,
@@ -153,6 +263,16 @@ const PublicCachesScreen = ({ navigation }) => {
   };
 
   const openPublicLeaderboard = () => navigation.navigate('PublicLeaderboardScreen');
+  const selectedEvidenceText = useMemo(() => {
+    const cacheID = getCacheID(selectedCache);
+    if (cacheID === null || cacheID === undefined) return '';
+    return evidenceByCache[String(cacheID)] ? 'Evidence captured' : 'No evidence photo yet';
+  }, [selectedCache, evidenceByCache]);
+  const selectedEvidenceURI = useMemo(() => {
+    const cacheID = getCacheID(selectedCache);
+    if (cacheID === null || cacheID === undefined) return '';
+    return evidenceByCache[String(cacheID)]?.uri || '';
+  }, [selectedCache, evidenceByCache]);
 
   return (
     <View style={styles.screen}>
@@ -166,25 +286,47 @@ const PublicCachesScreen = ({ navigation }) => {
         showsCompass={false}
         toolbarEnabled={false}
       >
-        {publicCaches.map((cache) => (
+        {publicCaches.map((cache, index) => {
+          const cacheID = getCacheID(cache);
+          const selectedCacheID = getCacheID(selectedCache);
+          return (
           <Marker
-            key={cache.CacheID}
+            key={cacheID ?? `${cache.CacheName || 'cache'}-${index}`}
             coordinate={{
               latitude: cache.CacheLatitude ?? cache.CacheLat,
               longitude: cache.CacheLongitude ?? cache.CacheLng,
             }}
             title={cache.CacheName}
             description={cache.CacheClue}
-            pinColor={selectedCache?.CacheID === cache.CacheID ? 'blue' : '#d9a83c'}
+            pinColor={
+              selectedCacheID !== null && selectedCacheID !== undefined && String(selectedCacheID) === String(cacheID)
+                ? '#2f7f8f'
+                : (evidenceByCache[String(cacheID)] ? '#3a8f54' : '#b57011')
+            }
             onPress={() => setSelectedCache(cache)}
           />
-        ))}
+          );
+        })}
       </MapView>
 
       <View style={styles.topOverlay}>
         <View style={styles.headerCard}>
-          <Text style={styles.headerTitle}>Public World</Text>
-          <Text style={styles.headerSubtitle}>Explore shared caches from public events.</Text>
+          <Text style={styles.headerTitle}>Treasure Atlas</Text>
+          <Text style={styles.headerSubtitle}>Follow clues, track hidden caches, and mark your finds.</Text>
+          <View style={styles.legendRow}>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, styles.legendUnfound]} />
+              <Text style={styles.legendText}>Hidden</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, styles.legendFound]} />
+              <Text style={styles.legendText}>Evidence</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, styles.legendSelected]} />
+              <Text style={styles.legendText}>Selected</Text>
+            </View>
+          </View>
         </View>
       </View>
 
@@ -205,7 +347,27 @@ const PublicCachesScreen = ({ navigation }) => {
           </View>
           <View style={styles.selectedRow}>
             <Text style={styles.selectedEvent}>{selectedEvent?.EventName || ''}</Text>
+            {selectedCache ? <Text style={styles.selectedEvidenceMeta}>{selectedEvidenceText}</Text> : null}
+            {selectedCache && userLocation ? (
+              <Text style={styles.selectedEventMeta}>
+                {(() => {
+                  const latitude = selectedCache.CacheLatitude ?? selectedCache.CacheLat;
+                  const longitude = selectedCache.CacheLongitude ?? selectedCache.CacheLng;
+                  if (latitude === undefined || latitude === null || longitude === undefined || longitude === null) return '';
+                  const meters = distanceInMeters(userLocation.latitude, userLocation.longitude, latitude, longitude);
+                  if (!Number.isFinite(meters)) return '';
+                  if (meters <= AUTO_CAMERA_RADIUS_METERS) return `AR opens at <=${AUTO_CAMERA_RADIUS_METERS}m (${Math.round(meters)}m)`;
+                  return `${Math.round(meters)}m`;
+                })()}
+              </Text>
+            ) : null}
           </View>
+          {selectedEvidenceURI ? (
+            <View style={styles.evidencePreviewRow}>
+              <Image source={{ uri: selectedEvidenceURI }} style={styles.evidencePreviewImage} />
+              <Text style={styles.evidencePreviewText}>Saved evidence photo</Text>
+            </View>
+          ) : null}
           <View style={styles.actionRow}>
             <Button
               label=''
@@ -245,7 +407,7 @@ const PublicCachesScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: 'black',
+    backgroundColor: '#20150b',
   },
   map: {
     ...StyleSheet.absoluteFillObject,
@@ -257,21 +419,59 @@ const styles = StyleSheet.create({
     right: 16,
   },
   headerCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.96)',
+    backgroundColor: 'rgba(244, 232, 200, 0.96)',
     borderRadius: 16,
     padding: 12,
-    gap: 3,
-    borderWidth: 1,
-    borderColor: '#e3e3e3',
+    gap: 6,
+    borderWidth: 2,
+    borderColor: '#a8742a',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 5,
   },
   headerTitle: {
-    color: '#1f1f1f',
-    fontSize: 20,
-    fontWeight: '700',
+    color: '#4f2f10',
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: 0.4,
   },
   headerSubtitle: {
-    color: '#4d4d4d',
+    color: '#6a4a27',
     fontSize: 13,
+    fontWeight: '600',
+  },
+  legendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginTop: 2,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  legendDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 999,
+  },
+  legendUnfound: {
+    backgroundColor: '#b57011',
+  },
+  legendFound: {
+    backgroundColor: '#3a8f54',
+  },
+  legendSelected: {
+    backgroundColor: '#2f7f8f',
+  },
+  legendText: {
+    color: '#5e4121',
+    fontSize: 11,
+    fontWeight: '700',
   },
   loadingOverlay: {
     position: 'absolute',
@@ -297,11 +497,11 @@ const styles = StyleSheet.create({
     bottom: 26,
   },
   actionPanel: {
-    backgroundColor: 'rgba(0, 0, 0, 0.35)',
+    backgroundColor: 'rgba(36, 23, 11, 0.82)',
     borderRadius: 16,
     padding: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(230, 190, 120, 0.42)',
   },
   selectedRow: {
     flexDirection: 'row',
@@ -318,15 +518,45 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   selectedMeta: {
-    color: '#e9d18f',
+    color: '#f0c771',
     fontSize: 12,
     fontWeight: '700',
   },
   selectedEvent: {
-    color: '#d9d9d9',
+    color: '#eadfcb',
     fontSize: 11,
     fontWeight: '600',
     flex: 1,
+  },
+  selectedEvidenceMeta: {
+    color: '#86df9d',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  selectedEventMeta: {
+    color: '#d9a83c',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  evidencePreviewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+    paddingHorizontal: 2,
+  },
+  evidencePreviewImage: {
+    width: 34,
+    height: 34,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.45)',
+    backgroundColor: 'rgba(0,0,0,0.2)',
+  },
+  evidencePreviewText: {
+    color: '#d4f0dc',
+    fontSize: 11,
+    fontWeight: '600',
   },
   actionRow: {
     flexDirection: 'row',
@@ -345,23 +575,23 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   locationButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.16)',
-    borderColor: 'rgba(255, 255, 255, 0.35)',
+    backgroundColor: 'rgba(255, 240, 212, 0.15)',
+    borderColor: 'rgba(232, 189, 117, 0.45)',
   },
   openEventButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.16)',
-    borderColor: 'rgba(255, 255, 255, 0.35)',
+    backgroundColor: 'rgba(255, 240, 212, 0.15)',
+    borderColor: 'rgba(232, 189, 117, 0.45)',
   },
   leaderboardButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.16)',
-    borderColor: 'rgba(255, 255, 255, 0.35)',
+    backgroundColor: 'rgba(255, 240, 212, 0.15)',
+    borderColor: 'rgba(232, 189, 117, 0.45)',
   },
   navigateButton: {
-    backgroundColor: 'white',
-    borderColor: 'white',
+    backgroundColor: '#f1c66c',
+    borderColor: '#e1ad47',
   },
   navigateLabel: {
-    color: 'black',
+    color: '#2f1f06',
     fontWeight: '700',
   },
 });

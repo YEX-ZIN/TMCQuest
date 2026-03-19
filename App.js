@@ -13,6 +13,7 @@ import AddHuntLocationScreen from './src/components/screens/AddHuntLocationScree
 import ProfileScreen from './src/components/screens/ProfileScreen';
 import PublicCachesScreen from './src/components/screens/PublicCachesScreen';
 import PublicLeaderboardScreen from './src/components/screens/PublicLeaderboardScreen';
+import ARCameraNavigatorScreen from './src/components/screens/ARCameraNavigatorScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -46,6 +47,11 @@ export const App=()=> {
         />
         <Stack.Screen name='AddHuntLocationScreen' component={AddHuntLocationScreen} options={{headerShown: true, title: 'Add Hunt Location', headerStyle: {backgroundColor: 'black'}, headerTintColor: 'white'}}/>
         <Stack.Screen name='EventLeaderboardScreen' component={EventLeaderboardScreen} options={{headerShown: true, title: 'Leaderboard', headerStyle: {backgroundColor: 'black'}, headerTintColor: 'white'}}/>
+        <Stack.Screen
+          name='ARCameraNavigatorScreen'
+          component={ARCameraNavigatorScreen}
+          options={{headerShown: true, title: 'AR Navigator', headerTransparent: true, headerTintColor: 'white', headerShadowVisible: false}}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

@@ -114,8 +114,8 @@ const LoginScreen = ({navigation}) => {
           </Form>
 
           <View style={styles.helperBlock}>
-            <Text style={styles.helperTitle}>Quick test account</Text>
-            <Text style={styles.helperText}>Username: aishaahmed</Text>
+            <Text style={styles.helperTitle}>Quick account</Text>
+            <Text style={styles.helperText}>Username: Yhossain</Text>
             <Text style={styles.helperText}>Password: password</Text>
           </View>
 
