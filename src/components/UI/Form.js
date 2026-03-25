@@ -25,7 +25,7 @@ const Form = ({children, onSubmit, onCancel, submitLabel, submitIcon, submitButt
   );
 };
 
-const InputText = ({label, value, onChange, secureTextEntry = false, labelStyle, inputStyle, placeholder = '', placeholderTextColor = '#9ca3af', textContentType = 'none', autoComplete = 'off'}) => {
+const InputText = ({label, value, onChange, secureTextEntry = false, labelStyle, inputStyle, placeholder = '', placeholderTextColor = '#9ca3af', textContentType = 'none', autoComplete = 'off', ...inputProps}) => {
     const [internalValue, setInternalValue] = React.useState(value);
     const inputRef = React.useRef(null);
     
@@ -60,6 +60,7 @@ const InputText = ({label, value, onChange, secureTextEntry = false, labelStyle,
                 textContentType={textContentType}
                 autoComplete={autoComplete}
                 editable={true}
+                {...inputProps}
             />
         </View>
     );

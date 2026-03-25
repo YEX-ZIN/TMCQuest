@@ -21,11 +21,16 @@ const LoginScreen = ({navigation}) => {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [, saveCurrentUser] = useCurrentUser();
   // Handlers ----------------------------
-  const handleChange = (field, value) => setCredentials({...credentials, [field]: value});
+  const handleChange = (field, value) => {
+    setCredentials((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
 
   const handleLogin = async () => {
     const username = credentials.email.trim();
-    const password = credentials.password;
+    const password = credentials.password.trim();
     if (!username || !password) {
       Alert.alert('Missing Details', 'Enter your username and password.');
       return;
@@ -104,6 +109,8 @@ const LoginScreen = ({navigation}) => {
               inputStyle={styles.inputField}
               textContentType="username"
               autoComplete="username"
+              autoCapitalize='none'
+              autoCorrect={false}
             />
             <Form.InputText
               label="Password"
@@ -114,6 +121,8 @@ const LoginScreen = ({navigation}) => {
               inputStyle={styles.inputField}
               textContentType="password"
               autoComplete="password"
+              autoCapitalize='none'
+              autoCorrect={false}
             />
           </Form>
 

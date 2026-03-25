@@ -60,7 +60,7 @@ const SignUpScreen = ({navigation}) => {
     const phone = form.UserPhone.trim();
     const phoneDigits = onlyDigits(phone);
     const username = form.UserUsername.trim();
-    const password = form.UserPassword;
+    const password = form.UserPassword.trim();
     const imageURL = form.UserImageURL.trim();
 
     if (!firstName || !lastName || !phone || !username || !password) {
@@ -155,7 +155,7 @@ const SignUpScreen = ({navigation}) => {
           <View style={styles.heroGlowSecondary} />
 
           <View style={styles.brandPill}>
-            <Icons.Map color='white' size={18} />
+            <Icons.Map color='#f6e4bc' size={18} />
             <Text style={styles.brandPillText}>TMCQuest</Text>
           </View>
 
@@ -208,6 +208,8 @@ const SignUpScreen = ({navigation}) => {
               onChange={(value) => handleChange('UserUsername', value)}
               labelStyle={styles.inputLabel}
               inputStyle={styles.inputField}
+              autoCapitalize='none'
+              autoCorrect={false}
             />
             <Form.InputText
               label='Password'
@@ -216,6 +218,8 @@ const SignUpScreen = ({navigation}) => {
               secureTextEntry={true}
               labelStyle={styles.inputLabel}
               inputStyle={styles.inputField}
+              autoCapitalize='none'
+              autoCorrect={false}
             />
             <Form.InputText
               label='Profile Image URL (optional)'
@@ -234,17 +238,17 @@ const SignUpScreen = ({navigation}) => {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#eaf1f8',
+    backgroundColor: '#0d0a04',
   },
   container: {
     paddingHorizontal: 22,
-    paddingTop: 118,
+    paddingTop: 110,
     paddingBottom: 28,
     gap: 18,
   },
   heroCard: {
     borderRadius: 26,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#261a0a',
     paddingHorizontal: 22,
     paddingTop: 26,
     paddingBottom: 24,
@@ -263,8 +267,8 @@ const styles = StyleSheet.create({
     borderRadius: 85,
     top: -48,
     right: -40,
-    backgroundColor: '#2563eb',
-    opacity: 0.28,
+    backgroundColor: '#d4a843',
+    opacity: 0.2,
   },
   heroGlowSecondary: {
     position: 'absolute',
@@ -273,8 +277,8 @@ const styles = StyleSheet.create({
     borderRadius: 60,
     bottom: -30,
     left: -15,
-    backgroundColor: '#22d3ee',
-    opacity: 0.18,
+    backgroundColor: '#5a3a12',
+    opacity: 0.35,
   },
   brandPill: {
     alignSelf: 'flex-start',
@@ -284,14 +288,14 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingVertical: 8,
     paddingHorizontal: 12,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: 'rgba(212,168,67,0.16)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.18)',
+    borderColor: '#c4903a',
   },
   brandPillText: {
     fontSize: 13,
     fontWeight: '700',
-    color: 'white',
+    color: '#f6e4bc',
     letterSpacing: 0.5,
   },
   textBlock: {
@@ -299,27 +303,27 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   title: {
-    fontSize: 34,
+    fontSize: 36,
     fontWeight: 'bold',
-    color: 'white',
+    color: '#f0d080',
     letterSpacing: 1,
   },
   subtitle: {
     fontSize: 15,
-    color: '#cbd5e1',
+    color: '#d8bc87',
     lineHeight: 22,
   },
   card: {
-    backgroundColor: 'white',
+    backgroundColor: 'rgba(246,231,194,0.95)',
     borderRadius: 22,
-    borderWidth: 1,
-    borderColor: '#dbe3ec',
+    borderWidth: 1.5,
+    borderColor: '#c4903a',
     padding: 20,
-    shadowColor: '#000',
+    shadowColor: '#d4a843',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.25,
     shadowRadius: 14,
-    elevation: 3,
+    elevation: 8,
     gap: 12,
   },
   cardHeader: {
@@ -328,39 +332,40 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#0f172a',
+    color: '#2f1b07',
   },
   cardSubtitle: {
     fontSize: 14,
-    color: '#64748b',
+    color: '#6b4e2a',
     lineHeight: 20,
   },
   primaryButton: {
-    backgroundColor: '#0f172a',
-    borderColor: '#0f172a',
+    backgroundColor: '#c4903a',
+    borderColor: '#f0d080',
+    borderWidth: 1,
     borderRadius: 12,
   },
   primaryLabel: {
-    color: 'white',
+    color: '#1a1105',
     fontWeight: '700',
   },
   cancelButton: {
-    backgroundColor: '#f8fafc',
-    borderColor: '#cbd5e1',
+    backgroundColor: '#f6ead0',
+    borderColor: '#caa45a',
     borderRadius: 12,
   },
   cancelLabel: {
-    color: '#334155',
+    color: '#5c3b10',
     fontWeight: '600',
   },
   inputLabel: {
-    color: '#475569',
+    color: '#5c3b10',
     fontWeight: '600',
   },
   inputField: {
-    backgroundColor: '#f8fafc',
-    borderColor: '#d7e0ea',
-    color: '#0f172a',
+    backgroundColor: '#f8f1df',
+    borderColor: '#d8be86',
+    color: '#2f1b07',
     borderRadius: 12,
   },
 });
