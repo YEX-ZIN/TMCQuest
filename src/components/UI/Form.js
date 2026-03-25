@@ -1,3 +1,4 @@
+import React from 'react';
 import {KeyboardAvoidingView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import Icons from './Icons.js';
@@ -24,22 +25,42 @@ const Form = ({children, onSubmit, onCancel, submitLabel, submitIcon, submitButt
   );
 };
 
-const InputText = ({label, value, onChange, secureTextEntry = false, labelStyle, inputStyle, placeholder = '', placeholderTextColor = '#9ca3af'}) => {
-    // Initialisations ---------------------
-    // State -------------------------------
-    // Handlers ----------------------------
-    // View --------------------------------
+const InputText = ({label, value, onChange, secureTextEntry = false, labelStyle, inputStyle, placeholder = '', placeholderTextColor = '#9ca3af', textContentType = 'none', autoComplete = 'off'}) => {
+    const [internalValue, setInternalValue] = React.useState(value);
+    const inputRef = React.useRef(null);
+    
+    React.useEffect(() => {
+        setInternalValue(value);
+    }, [value]);
+    
+    const handleChange = (text) => {
+        setInternalValue(text);
+        onChange(text);
+    };
+    
+    const handleEndEditing = () => {
+        // Ensure parent state is synced when field loses focus (critical for autofill)
+        if (internalValue !== value) {
+            onChange(internalValue);
+        }
+    };
+    
     return(
         <View style={styles.item}>
-        <Text style={[styles.itemLabel, labelStyle]}>{label}</Text>
-                <TextInput
-                    value={value}
-                    onChangeText={onChange}
-                    style={[styles.itemTextInput, inputStyle]}
-                    secureTextEntry={secureTextEntry}
-                    placeholder={placeholder}
-                    placeholderTextColor={placeholderTextColor}
-                />
+            <Text style={[styles.itemLabel, labelStyle]}>{label}</Text>
+            <TextInput
+                ref={inputRef}
+                value={internalValue}
+                onChangeText={handleChange}
+                onEndEditing={handleEndEditing}
+                style={[styles.itemTextInput, inputStyle]}
+                secureTextEntry={secureTextEntry}
+                placeholder={placeholder}
+                placeholderTextColor={placeholderTextColor}
+                textContentType={textContentType}
+                autoComplete={autoComplete}
+                editable={true}
+            />
         </View>
     );
 };

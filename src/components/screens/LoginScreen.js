@@ -102,6 +102,8 @@ const LoginScreen = ({navigation}) => {
               onChange={(value) => handleChange('email', value)}
               labelStyle={styles.inputLabel}
               inputStyle={styles.inputField}
+              textContentType="username"
+              autoComplete="username"
             />
             <Form.InputText
               label="Password"
@@ -110,6 +112,8 @@ const LoginScreen = ({navigation}) => {
               secureTextEntry={true}
               labelStyle={styles.inputLabel}
               inputStyle={styles.inputField}
+              textContentType="password"
+              autoComplete="password"
             />
           </Form>
 
