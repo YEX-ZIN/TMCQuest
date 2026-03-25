@@ -319,6 +319,8 @@ const PublicCachesScreen = ({ navigation }) => {
         {publicCaches.map((cache, index) => {
           const cacheID = getCacheID(cache);
           const selectedCacheID = getCacheID(selectedCache);
+          const isSelected = selectedCacheID !== null && selectedCacheID !== undefined && String(selectedCacheID) === String(cacheID);
+          const hasEvidence = evidenceByCache[String(cacheID)] !== undefined;
           return (
           <Marker
             key={cacheID ?? `${cache.CacheName || 'cache'}-${index}`}
@@ -328,13 +330,20 @@ const PublicCachesScreen = ({ navigation }) => {
             }}
             title={cache.CacheName}
             description={cache.CacheClue}
-            pinColor={
-              selectedCacheID !== null && selectedCacheID !== undefined && String(selectedCacheID) === String(cacheID)
-                ? '#2f7f8f'
-                : (evidenceByCache[String(cacheID)] ? '#3a8f54' : '#b57011')
-            }
+            anchor={{ x: 0.5, y: 0.5 }}
             onPress={() => setSelectedCache(cache)}
-          />
+          >
+            <View
+              style={[
+                styles.treasureMarker,
+                isSelected
+                  ? styles.treasureMarkerSelected
+                  : (hasEvidence ? styles.treasureMarkerFound : styles.treasureMarkerHidden),
+              ]}
+            >
+              <Icons.TreasureChest size={16} color='white' />
+            </View>
+          </Marker>
           );
         })}
       </MapView>
@@ -502,6 +511,29 @@ const styles = StyleSheet.create({
     color: '#5e4121',
     fontSize: 11,
     fontWeight: '700',
+  },
+  treasureMarker: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.88)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  treasureMarkerHidden: {
+    backgroundColor: '#b57011',
+  },
+  treasureMarkerFound: {
+    backgroundColor: '#3a8f54',
+  },
+  treasureMarkerSelected: {
+    backgroundColor: '#2f7f8f',
   },
   loadingOverlay: {
     position: 'absolute',

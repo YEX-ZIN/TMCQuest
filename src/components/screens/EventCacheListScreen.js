@@ -568,6 +568,8 @@ const EventCacheListScreen = ({navigation, route}) => {
         {eventCaches.map((cache, index) => {
           const cacheID = getCacheID(cache);
           const selectedCacheID = getCacheID(selectedCache);
+          const isSelected = selectedCacheID !== null && selectedCacheID !== undefined && String(selectedCacheID) === String(cacheID);
+          const isFound = foundCacheLookup[String(cacheID)] === true;
           return (
           <Marker
             key={cacheID ?? `${cache.CacheName || 'cache'}-${index}`}
@@ -576,13 +578,20 @@ const EventCacheListScreen = ({navigation, route}) => {
             }}
             title={cache.CacheName}
             description={cache.CacheClue}
-            pinColor={
-              selectedCacheID !== null && selectedCacheID !== undefined && String(selectedCacheID) === String(cacheID)
-                ? 'blue'
-                : (foundCacheLookup[String(cacheID)] ? 'green' : 'red')
-            }
+            anchor={{ x: 0.5, y: 0.5 }}
             onPress={() => selectCache(cache)}
-          />
+          >
+            <View
+              style={[
+                styles.treasureMarker,
+                isSelected
+                  ? styles.treasureMarkerSelected
+                  : (isFound ? styles.treasureMarkerFound : styles.treasureMarkerHidden),
+              ]}
+            >
+              <Icons.TreasureChest size={16} color='white' />
+            </View>
+          </Marker>
           );
         })}
       </MapView>
@@ -610,7 +619,7 @@ const EventCacheListScreen = ({navigation, route}) => {
             </View>
             <View style={styles.metaPillSmall}>
               <View style={styles.metaInline}>
-                <Icons.CacheBox />
+                <Icons.TreasureChest size={15} color='#222222' />
                 <Text style={styles.cacheCount}>{eventCaches.length}</Text>
               </View>
             </View>
@@ -799,6 +808,29 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#333333',
     fontWeight: '600',
+  },
+  treasureMarker: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.88)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  treasureMarkerHidden: {
+    backgroundColor: '#b94a48',
+  },
+  treasureMarkerFound: {
+    backgroundColor: '#2e8b57',
+  },
+  treasureMarkerSelected: {
+    backgroundColor: '#2f6fd4',
   },
   loadingOverlay: {
     position: 'absolute',

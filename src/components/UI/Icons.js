@@ -1,4 +1,4 @@
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 
 const Icons = {};
 
@@ -14,6 +14,7 @@ const Navigation = ({size = 16, color = 'black'}) => <MaterialIcons name='near-m
 const Leaderboard = ({size = 18, color = 'white'}) => <MaterialIcons name='emoji-events' size={size} color={color} />;
 const Clock = ({size = 14, color = '#333333'}) => <MaterialIcons name='schedule' size={size} color={color} />;
 const CacheBox = ({size = 14, color = '#222222'}) => <MaterialIcons name='inventory-2' size={size} color={color} />;
+const TreasureChest = ({size = 14, color = '#222222'}) => <MaterialCommunityIcons name='treasure-chest' size={size} color={color} />;
 const Map = ({size = 22, color = 'black'}) => <MaterialIcons name='map' size={size} color={color} />;
 const Key = ({size = 22, color = 'black'}) => <MaterialIcons name='vpn-key' size={size} color={color} />;
 const Profile = ({size = 22, color = 'black'}) => <MaterialIcons name='account-circle' size={size} color={color} />;
@@ -31,6 +32,7 @@ Icons.Navigation = Navigation;
 Icons.Leaderboard = Leaderboard;
 Icons.Clock = Clock;
 Icons.CacheBox = CacheBox;
+Icons.TreasureChest = TreasureChest;
 Icons.Map = Map;
 Icons.Key = Key;
 Icons.Profile = Profile;
