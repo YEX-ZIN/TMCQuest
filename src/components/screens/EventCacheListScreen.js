@@ -429,9 +429,15 @@ const EventCacheListScreen = ({navigation, route}) => {
       [String(cacheID)]: true,
     }));
     setLeaderboardRefreshKey(Date.now());
+    setSelectedCache(null);
 
     const points = Number(selectedCache.CachePoints || 0);
-    Alert.alert('Discovery Logged', `Nice find! +${Number.isFinite(points) ? points : 0} points.`);
+    const bonusMsg = points > 50 ? '🏆 Epic find!' : points > 25 ? '⭐ Great find!' : '✨ Treasure found!';
+    Alert.alert(
+      '🎉 TREASURE DISCOVERED! 🎉',
+      `${bonusMsg}\n\n+${Number.isFinite(points) ? points : 0} points earned!\n\nYou found: ${selectedCache.CacheName}`,
+      [{ text: 'Awesome!', onPress: () => {} }]
+    );
   };
 
   useEffect(() => { requestLocation(); }, []);
@@ -842,10 +848,18 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   treasureMarkerHidden: {
-    backgroundColor: '#b94a48',
+    backgroundColor: '#d32f2f',
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
   },
   treasureMarkerFound: {
-    backgroundColor: '#2e8b57',
+    backgroundColor: '#4CAF50',
+    shadowColor: '#4CAF50',
+    shadowOpacity: 0.8,
+    shadowRadius: 10,
+    elevation: 8,
   },
   treasureMarkerSelected: {
     backgroundColor: '#2f6fd4',
