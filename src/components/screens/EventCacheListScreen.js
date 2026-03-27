@@ -208,7 +208,7 @@ const EventCacheListScreen = ({navigation, route}) => {
       [String(cacheID)]: true,
     }));
 
-    setLeaderboardRefreshKey(Date.now());
+    setLeaderboardRefreshKey(Date.now() + Math.random());
     setSelectedCache(null);
 
     const points = Number(payload?.points || 0);
@@ -249,6 +249,98 @@ const EventCacheListScreen = ({navigation, route}) => {
       EventCaches: [...(prev.EventCaches || []), newCache],
     }));
   }, []);
+
+  const handleCacheUpdated = useCallback((updatedCache) => {
+    const updatedCacheID = getCacheID(updatedCache);
+    if (updatedCacheID === null || updatedCacheID === undefined) return;
+
+    setEvent((prev) => ({
+      ...prev,
+      EventCaches: (prev.EventCaches || []).map((item) => {
+        const itemID = getCacheID(item);
+        if (String(itemID) !== String(updatedCacheID)) return item;
+        return { ...item, ...updatedCache };
+      }),
+    }));
+
+    setSelectedCache((prev) => {
+      const prevID = getCacheID(prev);
+      if (prevID === null || prevID === undefined) return prev;
+      if (String(prevID) !== String(updatedCacheID)) return prev;
+      return { ...prev, ...updatedCache };
+    });
+  }, []);
+
+  const handleEditCache = useCallback((cache) => {
+    if (!isHost) return;
+    const cacheID = getCacheID(cache);
+    if (cacheID === null || cacheID === undefined) return;
+
+    navigation.navigate('AddHuntLocationScreen', {
+      event,
+      isHost,
+      mode: 'edit',
+      cacheToEdit: cache,
+      onCacheUpdated: handleCacheUpdated,
+    });
+  }, [event, isHost, navigation, handleCacheUpdated]);
+
+  const handleDeleteCache = useCallback((cache) => {
+    if (!isHost) return;
+    const cacheID = getCacheID(cache);
+    if (cacheID === null || cacheID === undefined) {
+      Alert.alert('Delete Failed', 'Could not determine cache ID.');
+      return;
+    }
+
+    Alert.alert(
+      'Delete Hunt Location',
+      `Delete "${cache.CacheName || 'this cache'}" from the map?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            const response = await API.delete(API.geoQuest.caches(cacheID));
+            if (!response.isSuccess) {
+              Alert.alert('Delete Failed', response.message || 'Could not delete this cache right now.');
+              return;
+            }
+
+            setEvent((prev) => ({
+              ...prev,
+              EventCaches: (prev.EventCaches || []).filter((item) => String(getCacheID(item)) !== String(cacheID)),
+            }));
+
+            setFoundCacheLookup((prev) => {
+              const next = { ...prev };
+              delete next[String(cacheID)];
+              return next;
+            });
+
+            setSelectedCache((prev) => {
+              const prevID = getCacheID(prev);
+              if (prevID === null || prevID === undefined) return prev;
+              return String(prevID) === String(cacheID) ? null : prev;
+            });
+
+            Alert.alert('Deleted', 'Hunt location removed from this event.');
+          },
+        },
+      ],
+    );
+  }, [isHost]);
+
+  const handleManageCacheFromMap = useCallback((cache) => {
+    if (!isHost) return;
+
+    Alert.alert('Manage Hunt Location', cache.CacheName || 'Selected cache', [
+      { text: 'Edit', onPress: () => handleEditCache(cache) },
+      { text: 'Delete', style: 'destructive', onPress: () => handleDeleteCache(cache) },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  }, [isHost, handleEditCache, handleDeleteCache]);
 
   const handleMapLongPress = (mapEvent) => {
     if (!isHost) return;
@@ -441,7 +533,7 @@ const EventCacheListScreen = ({navigation, route}) => {
       FindCacheID: cacheID,
       FindDatetime: new Date().toISOString(),
     };
-    if (evidenceURI) payload.FindEvidenceURL = evidenceURI;
+    if (evidenceURI) payload.FindImageURL = evidenceURI;
 
     let createFindResponse = await API.post(API.geoQuest.finds(), payload);
     if (!createFindResponse.isSuccess && evidenceURI) {
@@ -464,7 +556,7 @@ const EventCacheListScreen = ({navigation, route}) => {
       ...prev,
       [String(cacheID)]: true,
     }));
-    setLeaderboardRefreshKey(Date.now());
+    setLeaderboardRefreshKey(Date.now() + Math.random());
     setSelectedCache(null);
 
     const points = Number(selectedCache.CachePoints || 0);
@@ -624,6 +716,7 @@ const EventCacheListScreen = ({navigation, route}) => {
             description={cache.CacheClue}
             anchor={{ x: 0.5, y: 0.5 }}
             onPress={() => selectCache(cache)}
+            onCalloutPress={() => handleManageCacheFromMap(cache)}
           >
             <View
               style={[
@@ -675,7 +768,7 @@ const EventCacheListScreen = ({navigation, route}) => {
           </View>
           {isHost && (
             <View style={styles.metaPill}>
-              <Text style={styles.hostHintText}>Host mode: long-press the map to add a hunt location.</Text>
+              <Text style={styles.hostHintText}>Host mode: long-press map to add, tap marker callout to edit or delete an existing hunt location.</Text>
             </View>
           )}
         </View>
@@ -749,6 +842,22 @@ const EventCacheListScreen = ({navigation, route}) => {
               styleLabel={styles.actionLabel}
             />
           </View>
+          {isHost && selectedCache ? (
+            <View style={styles.hostActionRow}>
+              <Button
+                label='Edit Selected'
+                onClick={() => handleEditCache(selectedCache)}
+                styleButton={[styles.hostActionButton, styles.hostEditButton]}
+                styleLabel={styles.hostActionLabel}
+              />
+              <Button
+                label='Delete Selected'
+                onClick={() => handleDeleteCache(selectedCache)}
+                styleButton={[styles.hostActionButton, styles.hostDeleteButton]}
+                styleLabel={styles.hostDeleteLabel}
+              />
+            </View>
+          ) : null}
           {isLoggingFind ? <Text style={styles.loggingHint}>Logging discovery...</Text> : null}
         </View>
       </View>
@@ -1050,6 +1159,35 @@ const styles = StyleSheet.create({
   },
   navigateLabel: {
     color: 'black',
+    fontWeight: '700',
+  },
+  hostActionRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
+  },
+  hostActionButton: {
+    flex: 1,
+    minHeight: 40,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  hostEditButton: {
+    backgroundColor: '#f4e5c3',
+    borderColor: '#c4913a',
+  },
+  hostDeleteButton: {
+    backgroundColor: '#fde7e5',
+    borderColor: '#b23b2f',
+  },
+  hostActionLabel: {
+    color: '#5c3b10',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  hostDeleteLabel: {
+    color: '#8b2a1f',
+    fontSize: 12,
     fontWeight: '700',
   },
   loggingHint: {

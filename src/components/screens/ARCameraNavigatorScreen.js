@@ -348,7 +348,7 @@ const ARCameraNavigatorScreen = ({ navigation, route }) => {
         FindCacheID: cacheID,
         FindDatetime: new Date().toISOString(),
       };
-      if (capturedPhotoURI) payload.FindEvidenceURL = capturedPhotoURI;
+      if (capturedPhotoURI) payload.FindImageURL = capturedPhotoURI;
 
       let createFindResponse = await API.post(API.geoQuest.finds(), payload);
       if (!createFindResponse.isSuccess && capturedPhotoURI) {

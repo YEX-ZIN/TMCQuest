@@ -56,24 +56,47 @@ const buildLocationName = (place) => {
 
 const AddHuntLocationScreen = ({navigation, route}) => {
   // Initialisations ---------------------
-  const { event, coordinate, isHost = false, onCacheAdded } = route.params;
+  const {
+    event,
+    coordinate,
+    isHost = false,
+    onCacheAdded,
+    onCacheUpdated,
+    mode = 'create',
+    cacheToEdit = null,
+  } = route.params;
+  const isEditMode = mode === 'edit' && !!cacheToEdit;
   const cachesEndpoint = API.geoQuest.caches();
+  const cacheID = cacheToEdit?.CacheID || cacheToEdit?.CacheId || cacheToEdit?.id || null;
+  const initialCoordinate = {
+    latitude: Number(cacheToEdit?.CacheLatitude ?? cacheToEdit?.CacheLat ?? coordinate?.latitude ?? 0),
+    longitude: Number(cacheToEdit?.CacheLongitude ?? cacheToEdit?.CacheLng ?? coordinate?.longitude ?? 0),
+  };
   // State -------------------------------
   const [isResolvingName, setIsResolvingName] = useState(true);
   const [cache, setCache] = useState({
     ...defaultCache,
-    CacheEventID: event.EventID,
-    CacheLatitude: coordinate.latitude,
-    CacheLongitude: coordinate.longitude,
+    ...cacheToEdit,
+    CacheID: cacheID,
+    CacheEventID: cacheToEdit?.CacheEventID || event.EventID,
+    CacheLatitude: initialCoordinate.latitude,
+    CacheLongitude: initialCoordinate.longitude,
+    CachePoints: `${cacheToEdit?.CachePoints ?? cacheToEdit?.Cachepoints ?? defaultCache.CachePoints}`,
+    CacheImageURL: cacheToEdit?.CacheImageURL || '',
   });
 
   useEffect(() => {
+    if (isEditMode) {
+      setIsResolvingName(false);
+      return;
+    }
+
     const setNameFromCoordinate = async () => {
       setIsResolvingName(true);
       try {
         const places = await Location.reverseGeocodeAsync({
-          latitude: coordinate.latitude,
-          longitude: coordinate.longitude,
+          latitude: initialCoordinate.latitude,
+          longitude: initialCoordinate.longitude,
         });
         const suggestedName = buildLocationName(places?.[0]);
         if (suggestedName) {
@@ -90,7 +113,7 @@ const AddHuntLocationScreen = ({navigation, route}) => {
     };
 
     setNameFromCoordinate();
-  }, [coordinate.latitude, coordinate.longitude]);
+  }, [initialCoordinate.latitude, initialCoordinate.longitude, isEditMode]);
   // Handlers ----------------------------
   const handleChange = (field, value) => setCache({...cache, [field]: value});
 
@@ -117,20 +140,28 @@ const AddHuntLocationScreen = ({navigation, route}) => {
       ...(imageURL ? { CacheImageURL: imageURL } : {}),
     };
 
-    let response = await API.post(cachesEndpoint, cacheToSave);
+    const endpoint = isEditMode && cacheID ? API.geoQuest.caches(cacheID) : cachesEndpoint;
+    let response = isEditMode
+      ? await API.put(endpoint, cacheToSave)
+      : await API.post(endpoint, cacheToSave);
 
     const imageRequiredError = !imageURL
       && (response.message || '').toLowerCase().includes('cacheimageurl');
 
     if (!response.isSuccess && imageRequiredError) {
-      response = await API.post(cachesEndpoint, {
+      response = isEditMode
+        ? await API.put(endpoint, {
+          ...cacheToSave,
+          CacheImageURL: DEFAULT_CACHE_IMAGE_URL,
+        })
+        : await API.post(cachesEndpoint, {
         ...cacheToSave,
         CacheImageURL: DEFAULT_CACHE_IMAGE_URL,
       });
     }
 
     if (!response.isSuccess) {
-      Alert.alert('Add Location Failed', response.message);
+      Alert.alert(isEditMode ? 'Update Location Failed' : 'Add Location Failed', response.message);
       return;
     }
 
@@ -140,7 +171,11 @@ const AddHuntLocationScreen = ({navigation, route}) => {
       ...payload,
     };
 
-    if (onCacheAdded) onCacheAdded(createdCache);
+    if (isEditMode) {
+      if (onCacheUpdated) onCacheUpdated(createdCache);
+    } else if (onCacheAdded) {
+      onCacheAdded(createdCache);
+    }
     navigation.goBack();
   };
 
@@ -149,16 +184,20 @@ const AddHuntLocationScreen = ({navigation, route}) => {
   return (
     <Screen>
       <View style={styles.header}>
-        <Text style={styles.title}>Add Hunt Location</Text>
+        <Text style={styles.title}>{isEditMode ? 'Edit Hunt Location' : 'Add Hunt Location'}</Text>
         <Text style={styles.subtitle}>Selected map point:</Text>
         <Text style={styles.coords}>Lat {cache.CacheLatitude.toFixed(6)} | Lng {cache.CacheLongitude.toFixed(6)}</Text>
-        <Text style={styles.lookupText}>{isResolvingName ? 'Finding location name...' : 'Location name loaded from map point.'}</Text>
+        <Text style={styles.lookupText}>
+          {isEditMode
+            ? 'Update this cache details and save your changes.'
+            : (isResolvingName ? 'Finding location name...' : 'Location name loaded from map point.')}
+        </Text>
       </View>
 
       <Form
         onSubmit={handleSubmit}
         onCancel={handleCancel}
-        submitLabel='Save Location'
+        submitLabel={isEditMode ? 'Save Changes' : 'Save Location'}
         submitIcon={<Icons.Add />}
       >
         <Form.InputText

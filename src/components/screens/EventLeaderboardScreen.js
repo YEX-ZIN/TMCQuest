@@ -15,9 +15,17 @@ const normaliseList = (result) => {
   return [];
 };
 
-const getPlayerID = (find) => find.FindPlayerID || find.FindPlayerId || find.FindPlayer?.PlayerID || find.FindPlayer?.PlayerId;
-const getCacheID = (cache) => cache?.CacheID || cache?.CacheId || cache?.id || null;
-const getFindCacheID = (find) => find.FindCacheID || find.FindCacheId || find.FindCache?.CacheID || find.FindCache?.CacheId || null;
+const getID = (obj, ...fields) => {
+  for (const field of fields) {
+    if (obj?.[field] !== undefined && obj?.[field] !== null) return obj[field];
+  }
+  return null;
+};
+
+const getPlayerID = (obj) => getID(obj, 'PlayerID', 'PlayerId', 'id');
+const getFindPlayerID = (find) => getID(find, 'FindPlayerID', 'FindPlayerId') || getPlayerID(find?.FindPlayer);
+const getCacheID = (cache) => getID(cache, 'CacheID', 'CacheId', 'id');
+const getFindCacheID = (find) => getID(find, 'FindCacheID', 'FindCacheId') || getCacheID(find?.FindCache);
 const getEventID = (event) => event?.EventID || event?.EventId || event?.id;
 const getCachePoints = (find, cachePointsByID) => {
   const nestedPoints = Number(find.FindCache?.CachePoints || find.FindCache?.Cachepoints);
@@ -61,16 +69,28 @@ const EventLeaderboardScreen = ({navigation, route}) => {
     }
 
     setLoading(true);
-    const [playersResponse, findsResponse, cachesResponse, deactivationStore] = await Promise.all([
+    const [playersResponse, findsResponse, cachesResponse, allPlayersResponse, allFindsResponse, deactivationStore] = await Promise.all([
       API.get(API.geoQuest.playersByEvent(eventID)),
       API.get(API.geoQuest.findsByEvent(eventID)),
       API.get(API.geoQuest.cachesByEvent(eventID)),
+      API.get(API.geoQuest.players()),
+      API.get(API.geoQuest.finds()),
       readDeactivationStore(),
     ]);
 
     const eventDeactivation = deactivationStore[String(eventID)] || {};
-    const players = normaliseList(playersResponse.result);
-    const finds = normaliseList(findsResponse.result);
+    const players = playersResponse.isSuccess
+      ? normaliseList(playersResponse.result)
+      : normaliseList(allPlayersResponse.result).filter(
+        (player) => String(player.PlayerEventID) === String(eventID),
+      );
+    const finds = findsResponse.isSuccess
+      ? normaliseList(findsResponse.result)
+      : normaliseList(allFindsResponse.result).filter((find) => {
+        const nestedEventID = getID(find?.FindPlayer?.PlayerEvent, 'EventID', 'EventId', 'id');
+        const directEventID = getID(find, 'FindEventID', 'FindEventId', 'EventID', 'EventId');
+        return String(nestedEventID || directEventID) === String(eventID);
+      });
     const caches = normaliseList(cachesResponse.result);
 
     const cachePointsByID = caches.reduce((acc, cache) => {
@@ -81,20 +101,21 @@ const EventLeaderboardScreen = ({navigation, route}) => {
     }, {});
 
     const scoreByPlayer = finds.reduce((acc, find) => {
-      const playerID = getPlayerID(find);
+      const playerID = getFindPlayerID(find);
       if (!playerID) return acc;
-      acc[playerID] = (acc[playerID] || 0) + getCachePoints(find, cachePointsByID);
+      const key = String(playerID);
+      acc[key] = (acc[key] || 0) + getCachePoints(find, cachePointsByID);
       return acc;
     }, {});
 
     const rows = players
       .map((player) => ({
-        PlayerID: player.PlayerID,
+        PlayerID: getPlayerID(player),
         UserID: player.PlayerUserID,
         UserName: player.PlayerUser
           ? `${player.PlayerUser.UserFirstname || ''} ${player.PlayerUser.UserLastname || ''}`.trim() || player.PlayerUser.UserUsername || 'Player'
           : 'Player',
-        points: scoreByPlayer[player.PlayerID] || 0,
+        points: scoreByPlayer[String(getPlayerID(player))] || 0,
         isInactive: eventDeactivation[String(player.PlayerUserID)] === true,
       }))
       .sort((a, b) => b.points - a.points);
