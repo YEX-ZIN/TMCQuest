@@ -65,6 +65,13 @@ const buildJoinedEntries = ({ allEvents, allPlayers, allFinds, currentUserID, ca
     .filter(Boolean);
 };
 
+const encodeQuestCode = (value) => {
+  const numeric = Number(value);
+  if (Number.isNaN(numeric)) return `${value ?? '-'}`;
+  const mixed = (numeric * 1103515245 + 12345) >>> 0;
+  return mixed.toString(36).slice(-6).padStart(6, '0').toLowerCase();
+};
+
 const AdventureCard = ({ icon, modeLabel, title, description, tags, buttonLabel, buttonIcon, onPress, styleButton, styleLabel }) => (
   <View style={styles.card}>
     <View style={styles.cardTopRow}>
@@ -143,10 +150,11 @@ const DashboardScreen = ({navigation}) => {
 
   const handleOpenQuest = (quest) => {
     const isHost = quest._role === 'host';
+    const eventID = quest.EventID || quest.EventId || quest.id;
     navigation.navigate('EventCacheListScreen', {
       event: {
         ...quest,
-        EventInviteCode: quest.EventInviteCode || String(quest.EventID || ''),
+        EventInviteCode: quest.EventInviteCode || encodeQuestCode(eventID),
       },
       isHost,
     });

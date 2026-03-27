@@ -216,7 +216,7 @@ const EventCacheListScreen = ({navigation, route}) => {
     setEvent((prev) => ({
       ...prev,
       EventCaches: normaliseList(response.result),
-      EventInviteCode: String(eventID),
+      EventInviteCode: prev.EventInviteCode || encodeQuestCode(eventID),
     }));
   }, [event.EventID, event.EventId, event.id]);
 
