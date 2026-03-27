@@ -112,7 +112,7 @@ const JoinEventScreen = ({navigation}) => {
       <View style={styles.container}>
         <View style={styles.headerCard}>
           <Text style={styles.title}>Join Event</Text>
-          <Text style={styles.subtitle}>Enter the event quest code (for example 16GV8F).</Text>
+          <Text style={styles.subtitle}>Enter the event quest code (for example N9SUOK).</Text>
           <Text style={styles.helperText}>Use the code shown on the event screen. Do not enter your API key here.</Text>
         </View>
 
@@ -131,7 +131,7 @@ const JoinEventScreen = ({navigation}) => {
               label="Quest Code"
               value={code}
               onChange={setCode}
-              placeholder="Example: 16GV8F"
+              placeholder="Example: N9SUOK"
               labelStyle={styles.inputLabel}
               inputStyle={styles.inputField}
             />

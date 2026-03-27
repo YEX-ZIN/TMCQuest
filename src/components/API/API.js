@@ -1,7 +1,7 @@
 const API = {};
 
 const GEOQUEST_BASE_URL = process.env.EXPO_PUBLIC_GEOQUEST_API_BASE || 'https://mark0s.com/geoquest/v1/api';
-const GEOQUEST_API_KEY = process.env.EXPO_PUBLIC_GEOQUEST_API_KEY || '16gv8f';
+const GEOQUEST_API_KEY = process.env.EXPO_PUBLIC_GEOQUEST_API_KEY || 'n9suok';
 
 const withKey = (url, key = GEOQUEST_API_KEY) => {
   if (/([?&])key=/.test(url)) return url;

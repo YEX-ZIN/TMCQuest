@@ -9,6 +9,7 @@ import useCurrentUser from '../store/useCurrentUser';
 
 const generateSystemEventCode = () => Math.random().toString(36).slice(2, 8).toLowerCase();
 const sanitiseCode = (value) => `${value || ''}`.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+const GROUP_PRIVATE_CODE = 'n9suok';
 
 const normaliseCreatedEvent = (result) => {
   if (!result) return {};
@@ -100,7 +101,7 @@ const CreateEventScreen = ({navigation}) => {
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showFinishPicker, setShowFinishPicker] = useState(false);
   const [systemCode, setSystemCode] = useState(generateSystemEventCode());
-  const [customCode, setCustomCode] = useState('');
+  const [customCode, setCustomCode] = useState(GROUP_PRIVATE_CODE);
   // Handlers ----------------------------
   const handleChange = (field, value) => setEvent({...event, [field]: value});
 
@@ -224,7 +225,7 @@ const CreateEventScreen = ({navigation}) => {
                 label="Custom Code (optional)"
                 value={customCode}
                 onChange={setCustomCode}
-                placeholder="e.g. TREK25"
+                placeholder="e.g. n9suok"
                 labelStyle={styles.inputLabel}
                 inputStyle={styles.inputField}
               />
