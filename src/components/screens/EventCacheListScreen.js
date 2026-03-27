@@ -199,6 +199,24 @@ const EventCacheListScreen = ({navigation, route}) => {
     }));
   }, []);
 
+  const handleDiscoveryLogged = useCallback((payload) => {
+    const cacheID = payload?.cacheID;
+    if (cacheID === null || cacheID === undefined) return;
+
+    setFoundCacheLookup((prev) => ({
+      ...prev,
+      [String(cacheID)]: true,
+    }));
+
+    setLeaderboardRefreshKey(Date.now());
+    setSelectedCache(null);
+
+    const points = Number(payload?.points || 0);
+    if (Number.isFinite(points)) {
+      Alert.alert('Treasure Logged', `+${points} points added for ${payload?.cacheName || 'this cache'}.`);
+    }
+  }, []);
+
   const refreshEvidence = useCallback(async () => {
     try {
       const evidenceMap = await loadEvidenceMap();
@@ -375,7 +393,16 @@ const EventCacheListScreen = ({navigation, route}) => {
       }
 
       const createdPlayerID = normaliseCreatedID(createPlayerResponse.result, 'PlayerID');
-      playerRecord = { PlayerID: createdPlayerID, PlayerUserID: currentUser.UserID, PlayerEventID: eventID };
+      if (createdPlayerID) {
+        playerRecord = { PlayerID: createdPlayerID, PlayerUserID: currentUser.UserID, PlayerEventID: eventID };
+      } else {
+        // Some API responses omit created IDs; re-read players to resolve this event membership.
+        const refreshedPlayersResponse = await API.get(API.geoQuest.playersByEvent(eventID));
+        if (refreshedPlayersResponse.isSuccess) {
+          const refreshedPlayers = normaliseList(refreshedPlayersResponse.result);
+          playerRecord = findPlayerForEvent(refreshedPlayers, currentUser.UserID, eventID);
+        }
+      }
     }
 
     const playerID = getPlayerID(playerRecord);
@@ -385,14 +412,19 @@ const EventCacheListScreen = ({navigation, route}) => {
       return;
     }
 
+    let existingFinds = [];
     const findsResponse = await API.get(API.geoQuest.findsByPlayer(playerID));
-    if (!findsResponse.isSuccess) {
-      setIsLoggingFind(false);
-      Alert.alert('Log Failed', findsResponse.message || 'Could not verify previous discoveries.');
-      return;
+    if (findsResponse.isSuccess) {
+      existingFinds = normaliseList(findsResponse.result);
+    } else {
+      // Fallback: some backends return errors for players with zero finds.
+      const findsByEventResponse = await API.get(API.geoQuest.findsByEvent(eventID));
+      if (findsByEventResponse.isSuccess) {
+        existingFinds = normaliseList(findsByEventResponse.result).filter(
+          (find) => String(getPlayerID(find)) === String(playerID),
+        );
+      }
     }
-
-    const existingFinds = normaliseList(findsResponse.result);
     const alreadyFound = existingFinds.some((find) => {
       const findCacheID = getFindCacheID(find);
       return String(findCacheID) === String(cacheID);
@@ -500,6 +532,7 @@ const EventCacheListScreen = ({navigation, route}) => {
         event,
         discoveryRadiusMeters: DISCOVERY_RADIUS_METERS,
         onEvidenceCaptured: handleEvidenceCaptured,
+        onDiscoveryLogged: handleDiscoveryLogged,
       });
       return;
     }
@@ -507,7 +540,7 @@ const EventCacheListScreen = ({navigation, route}) => {
     if (Number.isFinite(meters) && meters > AUTO_CAMERA_RESET_RADIUS_METERS && alreadyOpened) {
       autoOpenedCameraByCacheRef.current[cacheKey] = false;
     }
-  }, [isFocused, selectedCache, userLocation, navigation, event, handleEvidenceCaptured]);
+  }, [isFocused, selectedCache, userLocation, navigation, event, handleEvidenceCaptured, handleDiscoveryLogged]);
 
   const selectedDistanceText = useMemo(() => {
     if (!selectedCache || !userLocation) return '';
@@ -716,6 +749,7 @@ const EventCacheListScreen = ({navigation, route}) => {
               styleLabel={styles.actionLabel}
             />
           </View>
+          {isLoggingFind ? <Text style={styles.loggingHint}>Logging discovery...</Text> : null}
         </View>
       </View>
     </View>
@@ -1017,6 +1051,13 @@ const styles = StyleSheet.create({
   navigateLabel: {
     color: 'black',
     fontWeight: '700',
+  },
+  loggingHint: {
+    marginTop: 8,
+    color: '#ffe39f',
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'center',
   },
 });
 

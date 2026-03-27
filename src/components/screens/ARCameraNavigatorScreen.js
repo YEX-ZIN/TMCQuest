@@ -5,6 +5,8 @@ import * as Location from 'expo-location';
 import { DeviceMotion } from 'expo-sensors';
 import { Button } from '../UI/Button';
 import { saveEvidenceEntry } from '../store/evidenceStore';
+import API from '../API/API';
+import useCurrentUser from '../store/useCurrentUser';
 
 const toRadians = (degrees) => degrees * (Math.PI / 180);
 const toDegrees = (radians) => radians * (180 / Math.PI);
@@ -40,11 +42,36 @@ const normaliseAngle = (angle) => {
 };
 
 const getCacheID = (cache) => cache?.CacheID ?? cache?.CacheId ?? cache?.id;
+const getPlayerID = (player) => player?.PlayerID || player?.PlayerId || player?.id || null;
+const getFindPlayerID = (find) => find?.FindPlayerID || find?.FindPlayerId || find?.FindPlayer?.PlayerID || find?.FindPlayer?.PlayerId || null;
+const getFindCacheID = (find) => find?.FindCacheID || find?.FindCacheId || find?.FindCache?.CacheID || find?.FindCache?.CacheId || null;
+const getEventID = (event) => event?.EventID || event?.EventId || event?.id || null;
+
+const normaliseList = (result) => {
+  if (!result) return [];
+  if (Array.isArray(result)) return result;
+  if (Array.isArray(result.data)) return result.data;
+  if (Array.isArray(result.result)) return result.result;
+  return [];
+};
+
+const normaliseCreatedID = (result, keyName) => {
+  if (result === null || result === undefined) return null;
+  if (typeof result === 'number' || typeof result === 'string') return result;
+  if (Array.isArray(result)) return normaliseCreatedID(result[0], keyName);
+  return result?.[keyName] || result?.id || result?.insertId || result?.InsertId || null;
+};
+
+const findPlayerForEvent = (players, userID, eventID) => players.find(
+  (player) => String(player.PlayerUserID) === String(userID)
+    && String(player.PlayerEventID) === String(eventID),
+);
 
 const ARCameraNavigatorScreen = ({ navigation, route }) => {
   const cache = route.params?.cache;
   const discoveryRadiusMeters = Number(route.params?.discoveryRadiusMeters || 30);
   const onEvidenceCaptured = route.params?.onEvidenceCaptured;
+  const onDiscoveryLogged = route.params?.onDiscoveryLogged;
   const event = route.params?.event;
   const isPublic = route.params?.isPublic === true;
   const cacheLatitude = cache?.CacheLatitude ?? cache?.CacheLat;
@@ -60,6 +87,8 @@ const ARCameraNavigatorScreen = ({ navigation, route }) => {
   const [coords, setCoords] = useState(null);
   const [capturedPhotoURI, setCapturedPhotoURI] = useState('');
   const [isCapturing, setIsCapturing] = useState(false);
+  const [isSubmittingFind, setIsSubmittingFind] = useState(false);
+  const [currentUser] = useCurrentUser();
 
   useEffect(() => {
     let mounted = true;
@@ -206,6 +235,154 @@ const ARCameraNavigatorScreen = ({ navigation, route }) => {
     run();
   };
 
+  const ensureEvidenceSaved = async () => {
+    if (!capturedPhotoURI) return;
+
+    const payload = {
+      cacheID,
+      uri: capturedPhotoURI,
+      capturedAt: new Date().toISOString(),
+    };
+
+    await saveEvidenceEntry({
+      ...payload,
+      eventID: getEventID(event),
+      isPublic,
+    });
+
+    if (typeof onEvidenceCaptured === 'function') {
+      onEvidenceCaptured(payload);
+    }
+  };
+
+  const logFoundFromAR = async () => {
+    if (isSubmittingFind) return;
+    if (isPublic) {
+      Alert.alert('Unavailable', 'Found logging from AR is only available inside joined events.');
+      return;
+    }
+
+    const eventID = getEventID(event);
+    if (!currentUser?.UserID || !eventID || !cacheID) {
+      Alert.alert('Log Failed', 'Missing user, event, or cache details for this discovery.');
+      return;
+    }
+
+    if (!isUnlocked) {
+      Alert.alert('Too Far Away', `Move within ${discoveryRadiusMeters} meters to log this find.`);
+      return;
+    }
+
+    setIsSubmittingFind(true);
+
+    try {
+      await ensureEvidenceSaved();
+
+      const playersByEventResponse = await API.get(API.geoQuest.playersByEvent(eventID));
+      if (!playersByEventResponse.isSuccess) {
+        Alert.alert('Log Failed', playersByEventResponse.message || 'Could not load event participants.');
+        setIsSubmittingFind(false);
+        return;
+      }
+
+      const players = normaliseList(playersByEventResponse.result);
+      let playerRecord = findPlayerForEvent(players, currentUser.UserID, eventID);
+
+      if (!playerRecord) {
+        const createPlayerResponse = await API.post(API.geoQuest.players(), {
+          PlayerUserID: currentUser.UserID,
+          PlayerEventID: eventID,
+        });
+
+        if (!createPlayerResponse.isSuccess) {
+          Alert.alert('Log Failed', createPlayerResponse.message || 'Could not join this event automatically.');
+          setIsSubmittingFind(false);
+          return;
+        }
+
+        const createdPlayerID = normaliseCreatedID(createPlayerResponse.result, 'PlayerID');
+        if (createdPlayerID) {
+          playerRecord = {
+            PlayerID: createdPlayerID,
+            PlayerUserID: currentUser.UserID,
+            PlayerEventID: eventID,
+          };
+        } else {
+          const refreshedPlayersResponse = await API.get(API.geoQuest.playersByEvent(eventID));
+          if (refreshedPlayersResponse.isSuccess) {
+            const refreshedPlayers = normaliseList(refreshedPlayersResponse.result);
+            playerRecord = findPlayerForEvent(refreshedPlayers, currentUser.UserID, eventID);
+          }
+        }
+      }
+
+      const playerID = getPlayerID(playerRecord);
+      if (!playerID) {
+        Alert.alert('Log Failed', 'Could not resolve your player profile for this event.');
+        setIsSubmittingFind(false);
+        return;
+      }
+
+      let existingFinds = [];
+      const findsByPlayerResponse = await API.get(API.geoQuest.findsByPlayer(playerID));
+      if (findsByPlayerResponse.isSuccess) {
+        existingFinds = normaliseList(findsByPlayerResponse.result);
+      } else {
+        const findsByEventResponse = await API.get(API.geoQuest.findsByEvent(eventID));
+        if (findsByEventResponse.isSuccess) {
+          existingFinds = normaliseList(findsByEventResponse.result).filter(
+            (find) => String(getFindPlayerID(find)) === String(playerID),
+          );
+        }
+      }
+
+      const alreadyFound = existingFinds.some((find) => String(getFindCacheID(find)) === String(cacheID));
+      if (alreadyFound) {
+        Alert.alert('Already Logged', 'You already discovered this cache.');
+        setIsSubmittingFind(false);
+        return;
+      }
+
+      const payload = {
+        FindPlayerID: playerID,
+        FindCacheID: cacheID,
+        FindDatetime: new Date().toISOString(),
+      };
+      if (capturedPhotoURI) payload.FindEvidenceURL = capturedPhotoURI;
+
+      let createFindResponse = await API.post(API.geoQuest.finds(), payload);
+      if (!createFindResponse.isSuccess && capturedPhotoURI) {
+        createFindResponse = await API.post(API.geoQuest.finds(), {
+          FindPlayerID: playerID,
+          FindCacheID: cacheID,
+          FindDatetime: payload.FindDatetime,
+        });
+      }
+
+      if (!createFindResponse.isSuccess) {
+        Alert.alert('Log Failed', createFindResponse.message || 'Could not log this discovery right now.');
+        setIsSubmittingFind(false);
+        return;
+      }
+
+      if (typeof onDiscoveryLogged === 'function') {
+        onDiscoveryLogged({
+          cacheID,
+          cacheName: cache?.CacheName || 'Treasure Cache',
+          points: Number(cache?.CachePoints || 0),
+        });
+      }
+
+      Alert.alert('Discovery Logged', 'Your find was saved successfully.', [
+        { text: 'OK', onPress: () => navigation.goBack() },
+      ]);
+      setIsSubmittingFind(false);
+    } catch (error) {
+      setIsSubmittingFind(false);
+      Alert.alert('Log Failed', error.message || 'Something went wrong while logging your find.');
+    }
+  };
+
   if (!cameraPermission) {
     return (
       <View style={styles.centeredScreen}>
@@ -277,6 +454,14 @@ const ARCameraNavigatorScreen = ({ navigation, route }) => {
             styleButton={styles.captureButton}
             styleLabel={styles.captureButtonLabel}
           />
+          {!isPublic ? (
+            <Button
+              label={isSubmittingFind ? 'Logging...' : 'Found'}
+              onClick={logFoundFromAR}
+              styleButton={styles.foundButton}
+              styleLabel={styles.foundButtonLabel}
+            />
+          ) : null}
           <Button
             label={capturedPhotoURI ? 'Use Photo & Back' : 'Back To Map'}
             onClick={attachEvidenceAndBack}
@@ -453,6 +638,15 @@ const styles = StyleSheet.create({
   backButtonLabel: {
     color: '#1f2e4f',
     fontWeight: '700',
+  },
+  foundButton: {
+    flex: 1,
+    backgroundColor: '#4caf50',
+    borderColor: '#2e7d32',
+  },
+  foundButtonLabel: {
+    color: 'white',
+    fontWeight: '800',
   },
 });
 
