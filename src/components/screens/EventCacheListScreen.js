@@ -664,6 +664,12 @@ const EventCacheListScreen = ({navigation, route}) => {
             <Text style={styles.selectedSubMeta}>{selectedDistanceText || 'Distance will show after selecting a cache'}</Text>
             {selectedCache ? <Text style={styles.selectedEvidenceMeta}>{selectedEvidenceText}</Text> : null}
           </View>
+          {selectedCache?.CacheClue ? (
+            <View style={styles.clueRow}>
+              <Text style={styles.clueLabel}>Clue:</Text>
+              <Text style={styles.clueText}>{selectedCache.CacheClue}</Text>
+            </View>
+          ) : null}
           {selectedEvidenceURI ? (
             <View style={styles.evidencePreviewRow}>
               <Image source={{ uri: selectedEvidenceURI }} style={styles.evidencePreviewImage} />
@@ -806,9 +812,9 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   eventDescriptionText: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#232323',
-    lineHeight: 18,
+    lineHeight: 19,
     fontWeight: '500',
   },
   cacheCount: {
@@ -915,6 +921,23 @@ const styles = StyleSheet.create({
     color: '#7af4a5',
     fontSize: 11,
     fontWeight: '700',
+  },
+  clueRow: {
+    marginBottom: 8,
+    paddingHorizontal: 2,
+    gap: 4,
+  },
+  clueLabel: {
+    color: '#e9d18f',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  clueText: {
+    color: '#e0e0e0',
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: '500',
   },
   evidencePreviewRow: {
     flexDirection: 'row',

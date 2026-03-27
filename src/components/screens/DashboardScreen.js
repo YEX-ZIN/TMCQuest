@@ -622,9 +622,10 @@ const styles = StyleSheet.create({
     color: '#6b4e2a',
   },
   questDescription: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#5f4524',
-    lineHeight: 17,
+    lineHeight: 18,
+    fontWeight: '500',
   },
   questCardRight: {
     alignItems: 'flex-end',
