@@ -445,7 +445,7 @@ const ARCameraNavigatorScreen = ({ navigation, route }) => {
             <Image source={{ uri: capturedPhotoURI }} style={styles.evidenceImage} />
           </View>
         ) : (
-          <Text style={styles.evidenceHint}>Optional: capture a photo as evidence before logging discovery.</Text>
+          <Text style={styles.evidenceHint}>Optional: capture a photo as evidence before logging discovery. If skipped, a default image is attached.</Text>
         )}
         <View style={styles.controlRow}>
           <Button

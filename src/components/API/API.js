@@ -41,12 +41,18 @@ export default API;
 const normaliseFindPayload = (payload) => {
   if (!payload || typeof payload !== 'object') return payload;
   const next = { ...payload };
+  const fallbackFindImageURL = 'https://placehold.co/600x400/png';
 
   // GeoQuest spec uses FindImageURL for evidence media.
   if (next.FindEvidenceURL && !next.FindImageURL) {
     next.FindImageURL = next.FindEvidenceURL;
   }
   delete next.FindEvidenceURL;
+
+  // Some API keys enforce FindImageURL for all find logs.
+  if (!next.FindImageURL) {
+    next.FindImageURL = fallbackFindImageURL;
+  }
 
   return next;
 };
