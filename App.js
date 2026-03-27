@@ -26,7 +26,16 @@ export const App=()=> {
         <Stack.Screen name='SignUp' component={SignUpScreen} options={{headerShown: true, title: '', headerTransparent: true, headerTintColor: 'white', headerShadowVisible: false}}/>
         <Stack.Screen name='Dashboard' component={DashboardScreen}/>
         <Stack.Screen name='ProfileScreen' component={ProfileScreen} options={{headerShown: true, title: 'Profile', headerTransparent: true, headerTintColor: 'white', headerShadowVisible: false}}/>
-        <Stack.Screen name='CreateEventScreen' component={CreateEventScreen} options={{headerShown: true, title: 'Create Event', headerStyle: {backgroundColor: 'black'}, headerTintColor: 'white'}}/>
+        <Stack.Screen
+          name='CreateEventScreen'
+          component={CreateEventScreen}
+          options={({ route }) => ({
+            headerShown: true,
+            title: route?.params?.mode === 'edit' ? 'Edit Event' : 'Create Event',
+            headerStyle: {backgroundColor: 'black'},
+            headerTintColor: 'white',
+          })}
+        />
         <Stack.Screen name='JoinEventScreen' component={JoinEventScreen} options={{headerShown: true, title: 'Join Event', headerStyle: {backgroundColor: 'black'}, headerTintColor: 'white'}}/>
         <Stack.Screen
           name='PublicCachesScreen'

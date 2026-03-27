@@ -11,6 +11,11 @@ const generateSystemEventCode = () => Math.random().toString(36).slice(2, 8).toL
 const sanitiseCode = (value) => `${value || ''}`.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
 const GROUP_PRIVATE_CODE = 'n9suok';
 
+const parseDateSafe = (value, fallbackDate) => {
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? fallbackDate : parsed;
+};
+
 const normaliseCreatedEvent = (result) => {
   if (!result) return {};
   if (Array.isArray(result)) return result[0] || {};
@@ -83,25 +88,36 @@ const defaultEvent = {
   EventParticipants: [],
 };
 
-const CreateEventScreen = ({navigation}) => {
+const CreateEventScreen = ({navigation, route}) => {
   // Initialisations ---------------------
   const eventsEndpoint = API.geoQuest.events();
+  const editingEvent = route?.params?.event || null;
+  const isEditMode = route?.params?.mode === 'edit' && !!editingEvent;
   const now = new Date();
   const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000);
+  const initialStartDate = parseDateSafe(editingEvent?.EventStart, now);
+  const initialFinishDate = parseDateSafe(editingEvent?.EventFinish, oneHourLater);
+  const initialCustomCode = sanitiseCode(editingEvent?.EventInviteCode) || GROUP_PRIVATE_CODE;
   const [currentUser] = useCurrentUser();
   // State -------------------------------
   const [event, setEvent] = useState({
     ...defaultEvent,
-    EventID: Math.floor(100000 + Math.random() * 900000),
-    EventStart: now.toISOString(),
-    EventFinish: oneHourLater.toISOString(),
+    EventID: editingEvent?.EventID || editingEvent?.EventId || editingEvent?.id || Math.floor(100000 + Math.random() * 900000),
+    EventName: editingEvent?.EventName || '',
+    EventDescription: editingEvent?.EventDescription || '',
+    EventOwnerID: editingEvent?.EventOwnerID || currentUser?.UserID || null,
+    EventIspublic: editingEvent?.EventIspublic ?? false,
+    EventStart: initialStartDate.toISOString(),
+    EventFinish: initialFinishDate.toISOString(),
+    EventStatusID: editingEvent?.EventStatusID || 1,
+    EventInviteCode: editingEvent?.EventInviteCode || '',
   });
-  const [startDate, setStartDate] = useState(now);
-  const [finishDate, setFinishDate] = useState(oneHourLater);
+  const [startDate, setStartDate] = useState(initialStartDate);
+  const [finishDate, setFinishDate] = useState(initialFinishDate);
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showFinishPicker, setShowFinishPicker] = useState(false);
   const [systemCode, setSystemCode] = useState(generateSystemEventCode());
-  const [customCode, setCustomCode] = useState(GROUP_PRIVATE_CODE);
+  const [customCode, setCustomCode] = useState(initialCustomCode);
   // Handlers ----------------------------
   const handleChange = (field, value) => setEvent({...event, [field]: value});
 
@@ -138,8 +154,13 @@ const CreateEventScreen = ({navigation}) => {
     }
 
     const existingEvents = normaliseList(existingEventsResponse.result);
+    const currentEventID = event.EventID || event.EventId || event.id;
     const codeInUse = existingEvents.some(
-      (item) => sanitiseCode(item.EventInviteCode) === desiredCode,
+      (item) => {
+        const itemEventID = item.EventID || item.EventId || item.id;
+        const sameEvent = isEditMode && String(itemEventID) === String(currentEventID);
+        return !sameEvent && sanitiseCode(item.EventInviteCode) === desiredCode;
+      },
     );
     if (codeInUse) {
       Alert.alert('Code Unavailable', 'That event code is already in use. Choose another one.');
@@ -159,17 +180,24 @@ const CreateEventScreen = ({navigation}) => {
       return;
     }
 
-    const response = await API.post(eventsEndpoint, eventToSave);
+    const requestEndpoint = isEditMode
+      ? API.geoQuest.events(currentEventID)
+      : eventsEndpoint;
+    const response = isEditMode
+      ? await API.put(requestEndpoint, eventToSave)
+      : await API.post(requestEndpoint, eventToSave);
+
     if (response.isSuccess) {
+      if (isEditMode) {
+        navigation.replace('EventCacheListScreen', { event: { ...editingEvent, ...eventToSave }, isHost: true });
+        return;
+      }
+
       const createdPayload = normaliseCreatedEvent(response.result);
-      const createdEvent = await resolveCreatedEvent(
-        createdPayload,
-        eventToSave,
-        eventToSave.EventOwnerID,
-      );
-      navigation.replace('EventCacheListScreen', {event: createdEvent, isHost: true});
+      const createdEvent = await resolveCreatedEvent(createdPayload, eventToSave, eventToSave.EventOwnerID);
+      navigation.replace('EventCacheListScreen', { event: createdEvent, isHost: true });
     } else {
-      Alert.alert('Create Event Failed', response.message);
+      Alert.alert(isEditMode ? 'Update Event Failed' : 'Create Event Failed', response.message);
     }
   };
 
@@ -179,15 +207,17 @@ const CreateEventScreen = ({navigation}) => {
     <Screen style={styles.screen} statusBarStyle='light'>
       <View style={styles.container}>
         <View style={styles.headerCard}>
-          <Text style={styles.headerTitle}>Create Event</Text>
-          <Text style={styles.headerSubtitle}>Set your event details and prepare the hunt.</Text>
+          <Text style={styles.headerTitle}>{isEditMode ? 'Edit Event' : 'Create Event'}</Text>
+          <Text style={styles.headerSubtitle}>
+            {isEditMode ? 'Update your event details and save changes.' : 'Set your event details and prepare the hunt.'}
+          </Text>
         </View>
 
         <View style={styles.formCard}>
           <Form
             onSubmit={handleSubmit}
             onCancel={handleCancel}
-            submitLabel="Create"
+            submitLabel={isEditMode ? 'Save' : 'Create'}
             submitIcon={<Icons.Add />}
             submitButtonStyle={styles.submitButton}
             submitLabelStyle={styles.submitLabel}

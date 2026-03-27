@@ -44,7 +44,17 @@ const buildCachePointsByID = (allCaches) => allCaches.reduce((acc, cache) => {
 
 const buildHostedEvents = (allEvents, currentUserID) => allEvents
   .filter((event) => String(event.EventOwnerID) === String(currentUserID))
-  .map((event) => ({ ...event, _role: 'host', _score: null, _playerID: null }));
+  .map((event) => {
+    const eventID = getEventID(event);
+    const fallbackCode = event.EventIspublic ? encodeQuestCode(eventID) : API.geoQuest.key;
+    return {
+      ...event,
+      EventInviteCode: event.EventInviteCode || fallbackCode,
+      _role: 'host',
+      _score: null,
+      _playerID: null,
+    };
+  });
 
 const buildJoinedEntries = ({ allEvents, allPlayers, allFinds, currentUserID, cachePointsByID, hostedEvents }) => {
   const myPlayerRecords = allPlayers.filter((player) => String(player.PlayerUserID) === String(currentUserID));
@@ -162,12 +172,21 @@ const DashboardScreen = ({navigation}) => {
   const handleOpenQuest = (quest) => {
     const isHost = quest._role === 'host';
     const eventID = quest.EventID || quest.EventId || quest.id;
+    const fallbackCode = quest.EventIspublic ? encodeQuestCode(eventID) : API.geoQuest.key;
     navigation.navigate('EventCacheListScreen', {
       event: {
         ...quest,
-        EventInviteCode: quest.EventInviteCode || encodeQuestCode(eventID),
+        EventInviteCode: quest.EventInviteCode || fallbackCode,
       },
       isHost,
+    });
+  };
+
+  const handleEditQuest = (quest) => {
+    if (quest._role !== 'host') return;
+    navigation.navigate('CreateEventScreen', {
+      mode: 'edit',
+      event: quest,
     });
   };
 
@@ -195,6 +214,17 @@ const DashboardScreen = ({navigation}) => {
           setQuests(prev => prev.filter(q => q !== quest));
         },
       },
+    ]);
+  };
+
+  const handleHostManageQuest = (quest) => {
+    if (quest._role !== 'host') return;
+
+    Alert.alert('Manage Quest', `Choose an action for "${quest.EventName}"`, [
+      { text: 'Open Quest', onPress: () => handleOpenQuest(quest) },
+      { text: 'Edit Quest', onPress: () => handleEditQuest(quest) },
+      { text: 'Delete Quest', style: 'destructive', onPress: () => handleDeleteQuest(quest) },
+      { text: 'Cancel', style: 'cancel' },
     ]);
   };
 
@@ -318,7 +348,7 @@ const DashboardScreen = ({navigation}) => {
                 key={`${quest._role}-${quest.EventID}`}
                 style={({pressed}) => [styles.questCard, pressed && styles.questCardPressed]}
                 onPress={() => handleOpenQuest(quest)}
-                onLongPress={() => handleDeleteQuest(quest)}
+                onLongPress={() => (quest._role === 'host' ? handleHostManageQuest(quest) : handleDeleteQuest(quest))}
               >
                 <View style={styles.questCardLeft}>
                   <Text style={styles.questName} numberOfLines={1}>{quest.EventName}</Text>
@@ -341,6 +371,16 @@ const DashboardScreen = ({navigation}) => {
                       {quest._role === 'host' ? 'Host' : 'Player'}
                     </Text>
                   </View>
+                  {quest._role === 'host' ? (
+                    <View style={styles.hostActionsRow}>
+                      <Pressable
+                        onPress={() => handleHostManageQuest(quest)}
+                        style={({pressed}) => [styles.questActionBtn, styles.manageActionBtn, pressed && styles.questActionPressed]}
+                      >
+                        <Text style={styles.manageActionText}>Manage</Text>
+                      </Pressable>
+                    </View>
+                  ) : null}
                 </View>
               </Pressable>
             ))
@@ -630,6 +670,29 @@ const styles = StyleSheet.create({
   questCardRight: {
     alignItems: 'flex-end',
     gap: 5,
+  },
+  hostActionsRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 2,
+  },
+  questActionBtn: {
+    borderRadius: 7,
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  manageActionBtn: {
+    backgroundColor: '#f6ead0',
+    borderColor: '#8a6224',
+  },
+  questActionPressed: {
+    opacity: 0.72,
+  },
+  manageActionText: {
+    color: '#5c3b10',
+    fontSize: 11,
+    fontWeight: '700',
   },
   scorePill: {
     flexDirection: 'row',

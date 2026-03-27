@@ -177,7 +177,11 @@ const EventCacheListScreen = ({navigation, route}) => {
   };
 
   const gotoLeaderboard = () => {
-    navigation.navigate('EventLeaderboardScreen', {event, refreshKey: leaderboardRefreshKey});
+    navigation.navigate('EventLeaderboardScreen', {
+      event,
+      refreshKey: leaderboardRefreshKey,
+      isHost,
+    });
   };
   const recenterMap = () => requestLocation(true);
   const selectCache = (cache) => setSelectedCache(cache);
@@ -217,7 +221,7 @@ const EventCacheListScreen = ({navigation, route}) => {
     setEvent((prev) => ({
       ...prev,
       EventCaches: normaliseList(response.result),
-      EventInviteCode: prev.EventInviteCode || encodeQuestCode(eventID),
+      EventInviteCode: prev.EventInviteCode || (prev.EventIspublic ? encodeQuestCode(eventID) : API.geoQuest.key),
     }));
   }, [event.EventID, event.EventId, event.id]);
 
