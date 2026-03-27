@@ -115,7 +115,7 @@ const JoinEventScreen = ({navigation}) => {
 
     const eventWithCaches = {
       ...matchedEvent,
-      EventInviteCode: matchedEvent.EventInviteCode || encodeQuestCode(eventID),
+      EventInviteCode: inviteCode,
       EventCaches: eventCaches,
     };
 

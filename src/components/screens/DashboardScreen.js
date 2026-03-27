@@ -60,7 +60,18 @@ const buildJoinedEntries = ({ allEvents, allPlayers, allFinds, currentUserID, ca
         .filter((find) => String(getFindPlayerID(find)) === String(player.PlayerID))
         .reduce((sum, find) => sum + getFindPoints(find, cachePointsByID), 0);
 
-      return { ...event, _role: 'player', _score: score, _playerID: player.PlayerID };
+      const eventID = getEventID(event);
+      const fallbackCode = event.EventIspublic
+        ? encodeQuestCode(eventID)
+        : API.geoQuest.key;
+
+      return {
+        ...event,
+        EventInviteCode: event.EventInviteCode || fallbackCode,
+        _role: 'player',
+        _score: score,
+        _playerID: player.PlayerID,
+      };
     })
     .filter(Boolean);
 };
@@ -311,6 +322,9 @@ const DashboardScreen = ({navigation}) => {
               >
                 <View style={styles.questCardLeft}>
                   <Text style={styles.questName} numberOfLines={1}>{quest.EventName}</Text>
+                  {!!quest.EventDescription && (
+                    <Text style={styles.questDescription}>{quest.EventDescription}</Text>
+                  )}
                   <Text style={styles.questDate}>
                     {formatQuestDate(quest.EventStart)}
                   </Text>
@@ -606,6 +620,11 @@ const styles = StyleSheet.create({
   questDate: {
     fontSize: 12,
     color: '#6b4e2a',
+  },
+  questDescription: {
+    fontSize: 12,
+    color: '#5f4524',
+    lineHeight: 17,
   },
   questCardRight: {
     alignItems: 'flex-end',

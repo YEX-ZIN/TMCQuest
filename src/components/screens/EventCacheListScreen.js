@@ -105,6 +105,7 @@ const EventCacheListScreen = ({navigation, route}) => {
 
   const eventStart = event.EventStart || event.EventStartTime || '';
   const eventFinish = event.EventFinish || event.EventEndTime || '';
+  const eventDescription = (event.EventDescription || '').trim();
   const eventCaches = event.EventCaches || [];
   const inviteCode = (event.EventInviteCode
     ? `${event.EventInviteCode}`
@@ -613,6 +614,11 @@ const EventCacheListScreen = ({navigation, route}) => {
               </View>
             </View>
           </View>
+          {eventDescription ? (
+            <View style={styles.metaPill}>
+              <Text style={styles.eventDescriptionText}>{eventDescription}</Text>
+            </View>
+          ) : null}
           <View style={styles.metaRow}>
             <View style={styles.metaPillSmall}>
               <Text style={styles.codeValue}>Quest Code: {inviteCode}</Text>
@@ -798,6 +804,12 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#222222',
     letterSpacing: 0.5,
+  },
+  eventDescriptionText: {
+    fontSize: 12,
+    color: '#232323',
+    lineHeight: 18,
+    fontWeight: '500',
   },
   cacheCount: {
     fontSize: 12,
