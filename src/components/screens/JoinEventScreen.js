@@ -22,6 +22,18 @@ const encodeQuestCode = (value) => {
   const mixed = (numeric * 1103515245 + 12345) >>> 0;
   return mixed.toString(36).slice(-6).padStart(6, '0').toLowerCase();
 };
+const isApiKeyJoinCode = (value) => toCode(value) === toCode(API.geoQuest.key);
+
+const resolveFallbackEvent = (events = []) => {
+  if (!events.length) return null;
+
+  const privateEvents = events.filter((event) => event.EventIspublic === false);
+  const candidatePool = privateEvents.length ? privateEvents : events;
+
+  return [...candidatePool].sort(
+    (a, b) => new Date(b.EventStart || 0).getTime() - new Date(a.EventStart || 0).getTime(),
+  )[0] || null;
+};
 
 const JoinEventScreen = ({navigation}) => {
   // Initialisations ---------------------
@@ -51,7 +63,7 @@ const JoinEventScreen = ({navigation}) => {
     }
 
     const events = normaliseList(eventsResponse.result);
-    const matchedEvent = events.find((event) => {
+    let matchedEvent = events.find((event) => {
       const eventInviteCode = toCode(event.EventInviteCode);
       const eventIDText = toCode(event.EventID || event.EventId || event.id);
       const encodedEventCode = toCode(encodeQuestCode(eventIDText));
@@ -59,6 +71,11 @@ const JoinEventScreen = ({navigation}) => {
         || eventIDText === inviteCode
         || encodedEventCode === inviteCode;
     });
+
+    if (!matchedEvent && isApiKeyJoinCode(inviteCode)) {
+      matchedEvent = resolveFallbackEvent(events);
+    }
+
     if (!matchedEvent) {
       Alert.alert('Not Found', 'No event found with that code. Use the event code shown on the event screen and try again.');
       return;
@@ -98,7 +115,7 @@ const JoinEventScreen = ({navigation}) => {
 
     const eventWithCaches = {
       ...matchedEvent,
-      EventInviteCode: String(eventID),
+      EventInviteCode: matchedEvent.EventInviteCode || encodeQuestCode(eventID),
       EventCaches: eventCaches,
     };
 
@@ -113,7 +130,7 @@ const JoinEventScreen = ({navigation}) => {
         <View style={styles.headerCard}>
           <Text style={styles.title}>Join Event</Text>
           <Text style={styles.subtitle}>Enter the event quest code (for example N9SUOK).</Text>
-          <Text style={styles.helperText}>Use the code shown on the event screen. Do not enter your API key here.</Text>
+          <Text style={styles.helperText}>Use the event code shown on the event screen, or use N9SUOK to join the latest shared event.</Text>
         </View>
 
         <View style={styles.formCard}>
