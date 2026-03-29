@@ -648,6 +648,15 @@ const EventCacheListScreen = ({navigation, route}) => {
     if (cacheID === null || cacheID === undefined) return '';
     return evidenceByCache[String(cacheID)] ? 'Evidence captured' : 'No evidence photo yet';
   }, [selectedCache, evidenceByCache]);
+
+  const remainingCacheCount = useMemo(() => {
+    if (!eventCaches || eventCaches.length === 0) return 0;
+    const found = eventCaches.filter((cache) => {
+      const cacheID = getCacheID(cache);
+      return foundCacheLookup[String(cacheID)] === true;
+    }).length;
+    return eventCaches.length - found;
+  }, [eventCaches, foundCacheLookup]);
   const selectedEvidenceURI = useMemo(() => {
     const cacheID = getCacheID(selectedCache);
     if (cacheID === null || cacheID === undefined) return '';
@@ -703,9 +712,12 @@ const EventCacheListScreen = ({navigation, route}) => {
       >
         {eventCaches.map((cache, index) => {
           const cacheID = getCacheID(cache);
+          const isFound = foundCacheLookup[String(cacheID)] === true;
+          // Hide found caches from the map
+          if (isFound) return null;
+          
           const selectedCacheID = getCacheID(selectedCache);
           const isSelected = selectedCacheID !== null && selectedCacheID !== undefined && String(selectedCacheID) === String(cacheID);
-          const isFound = foundCacheLookup[String(cacheID)] === true;
           return (
           <Marker
             key={cacheID ?? `${cache.CacheName || 'cache'}-${index}`}
@@ -721,9 +733,7 @@ const EventCacheListScreen = ({navigation, route}) => {
             <View
               style={[
                 styles.treasureMarker,
-                isSelected
-                  ? styles.treasureMarkerSelected
-                  : (isFound ? styles.treasureMarkerFound : styles.treasureMarkerHidden),
+                isSelected ? styles.treasureMarkerSelected : styles.treasureMarkerHidden,
               ]}
             >
               <Icons.TreasureChest size={16} color='white' />
@@ -762,7 +772,7 @@ const EventCacheListScreen = ({navigation, route}) => {
             <View style={styles.metaPillSmall}>
               <View style={styles.metaInline}>
                 <Icons.TreasureChest size={15} color='#222222' />
-                <Text style={styles.cacheCount}>{eventCaches.length}</Text>
+                <Text style={styles.cacheCount}>{remainingCacheCount}</Text>
               </View>
             </View>
           </View>

@@ -18,6 +18,7 @@ const TreasureChest = ({size = 14, color = '#222222'}) => <MaterialCommunityIcon
 const Map = ({size = 22, color = 'black'}) => <MaterialIcons name='map' size={size} color={color} />;
 const Key = ({size = 22, color = 'black'}) => <MaterialIcons name='vpn-key' size={size} color={color} />;
 const Profile = ({size = 22, color = 'black'}) => <MaterialIcons name='account-circle' size={size} color={color} />;
+const Photo = ({size = 16, color = '#333'}) => <MaterialIcons name='image' size={size} color={color} />;
 
 // Compose
 Icons.Add = Add;
@@ -36,5 +37,6 @@ Icons.TreasureChest = TreasureChest;
 Icons.Map = Map;
 Icons.Key = Key;
 Icons.Profile = Profile;
+Icons.Photo = Photo;
 
 export default Icons;

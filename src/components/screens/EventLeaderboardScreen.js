@@ -1,11 +1,12 @@
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Screen from '../layout/Screen';
 import Icons from '../UI/Icons';
 import API from '../API/API';
 import useCurrentUser from '../store/useCurrentUser';
+import { loadEvidenceMap } from '../store/evidenceStore';
 
 const normaliseList = (result) => {
   if (!result) return [];
@@ -57,6 +58,10 @@ const EventLeaderboardScreen = ({navigation, route}) => {
   const [ranked, setRanked] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busyPlayerID, setBusyPlayerID] = useState(null);
+  const [expandedPlayerID, setExpandedPlayerID] = useState(null);
+  const [selectedEvidence, setSelectedEvidence] = useState(null);
+  const [evidenceModal, setEvidenceModal] = useState(false);
+  const [evidenceByCache, setEvidenceByCache] = useState({});
   const eventID = getEventID(event);
   const eventOwnerID = event?.EventOwnerID || event?.EventOwner?.UserID;
   const isHost = route.params?.isHost === true || String(currentUser?.UserID) === String(eventOwnerID);
@@ -69,13 +74,14 @@ const EventLeaderboardScreen = ({navigation, route}) => {
     }
 
     setLoading(true);
-    const [playersResponse, findsResponse, cachesResponse, allPlayersResponse, allFindsResponse, deactivationStore] = await Promise.all([
+    const [playersResponse, findsResponse, cachesResponse, allPlayersResponse, allFindsResponse, deactivationStore, evidenceMap] = await Promise.all([
       API.get(API.geoQuest.playersByEvent(eventID)),
       API.get(API.geoQuest.findsByEvent(eventID)),
       API.get(API.geoQuest.cachesByEvent(eventID)),
       API.get(API.geoQuest.players()),
       API.get(API.geoQuest.finds()),
       readDeactivationStore(),
+      loadEvidenceMap(),
     ]);
 
     const eventDeactivation = deactivationStore[String(eventID)] || {};
@@ -108,18 +114,32 @@ const EventLeaderboardScreen = ({navigation, route}) => {
       return acc;
     }, {});
 
+    const findsByPlayer = finds.reduce((acc, find) => {
+      const playerID = getFindPlayerID(find);
+      if (!playerID) return acc;
+      const key = String(playerID);
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(find);
+      return acc;
+    }, {});
+
     const rows = players
-      .map((player) => ({
-        PlayerID: getPlayerID(player),
-        UserID: player.PlayerUserID,
-        UserName: player.PlayerUser
-          ? `${player.PlayerUser.UserFirstname || ''} ${player.PlayerUser.UserLastname || ''}`.trim() || player.PlayerUser.UserUsername || 'Player'
-          : 'Player',
-        points: scoreByPlayer[String(getPlayerID(player))] || 0,
-        isInactive: eventDeactivation[String(player.PlayerUserID)] === true,
-      }))
+      .map((player) => {
+        const playerID = getPlayerID(player);
+        return {
+          PlayerID: playerID,
+          UserID: player.PlayerUserID,
+          UserName: player.PlayerUser
+            ? `${player.PlayerUser.UserFirstname || ''} ${player.PlayerUser.UserLastname || ''}`.trim() || player.PlayerUser.UserUsername || 'Player'
+            : 'Player',
+          points: scoreByPlayer[String(playerID)] || 0,
+          isInactive: eventDeactivation[String(player.PlayerUserID)] === true,
+          finds: findsByPlayer[String(playerID)] || [],
+        };
+      })
       .sort((a, b) => b.points - a.points);
 
+    setEvidenceByCache(evidenceMap || {});
     setRanked(rows);
     setLoading(false);
   }, [eventID]);
@@ -204,6 +224,19 @@ const EventLeaderboardScreen = ({navigation, route}) => {
     }, [loadLeaderboard, refreshKey]),
   );
 
+  const getFindImageURL = (find) => {
+    const cacheID = getFindCacheID(find);
+    // Check local evidence first (captured photos from device)
+    const localEvidence = evidenceByCache[String(cacheID)];
+    if (localEvidence?.uri) return localEvidence.uri;
+    // Fall back to API Find image
+    return find?.FindImageURL || find?.FindEvidenceURL || '';
+  };
+
+  const getCacheName = (find) => {
+    return find?.FindCache?.CacheName || 'Treasure';
+  };
+
   const medalColour = (index) => {
     if (index === 0) return '#FFD700';
     if (index === 1) return '#C0C0C0';
@@ -229,49 +262,133 @@ const EventLeaderboardScreen = ({navigation, route}) => {
           <Text style={styles.emptyText}>No participants yet.</Text>
         ) : (
           rankedRows.map((participant, index) => (
-            <View
-              key={`${participant.UserID}-${participant.PlayerID}`}
-              style={[styles.row, participant.isInactive && styles.rowInactive]}
-            >
-              <Text
-                style={[
-                  styles.rank,
-                  participant.isInactive ? styles.rankOff : {color: medalColour(index)},
-                ]}
-              >
-                {participant.rankLabel}
-              </Text>
-              <View style={styles.nameWrap}>
-                <Text style={styles.name}>{participant.UserName}</Text>
-                {participant.isInactive ? <Text style={styles.stateText}>Deactivated for this event</Text> : null}
+            <View key={`${participant.UserID}-${participant.PlayerID}`}>
+              <View style={[styles.row, participant.isInactive && styles.rowInactive]}>
+                <Text
+                  style={[
+                    styles.rank,
+                    participant.isInactive ? styles.rankOff : {color: medalColour(index)},
+                  ]}
+                >
+                  {participant.rankLabel}
+                </Text>
+                <View style={styles.nameWrap}>
+                  <Text style={styles.name}>{participant.UserName}</Text>
+                  {participant.isInactive ? <Text style={styles.stateText}>Deactivated for this event</Text> : null}
+                </View>
+                <View style={styles.rightCol}>
+                  <Text style={styles.points}>{participant.points} pts</Text>
+                  {isHost && String(participant.UserID) !== String(currentUser?.UserID) ? (
+                    <View style={styles.controlsRow}>
+                      <Pressable
+                        onPress={() => handleToggleActive(participant)}
+                        disabled={busyPlayerID === participant.PlayerID}
+                        style={({pressed}) => [styles.controlBtn, styles.toggleBtn, pressed && styles.controlBtnPressed]}
+                      >
+                        <Text style={styles.controlBtnText}>
+                          {participant.isInactive ? 'Activate' : 'Deactivate'}
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => handleRemoveParticipant(participant)}
+                        disabled={busyPlayerID === participant.PlayerID}
+                        style={({pressed}) => [styles.controlBtn, styles.removeBtn, pressed && styles.controlBtnPressed]}
+                      >
+                        <Text style={styles.removeBtnText}>Remove</Text>
+                      </Pressable>
+                    </View>
+                  ) : null}
+                </View>
               </View>
-              <View style={styles.rightCol}>
-                <Text style={styles.points}>{participant.points} pts</Text>
-                {isHost && String(participant.UserID) !== String(currentUser?.UserID) ? (
-                  <View style={styles.controlsRow}>
-                    <Pressable
-                      onPress={() => handleToggleActive(participant)}
-                      disabled={busyPlayerID === participant.PlayerID}
-                      style={({pressed}) => [styles.controlBtn, styles.toggleBtn, pressed && styles.controlBtnPressed]}
-                    >
-                      <Text style={styles.controlBtnText}>
-                        {participant.isInactive ? 'Activate' : 'Deactivate'}
-                      </Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={() => handleRemoveParticipant(participant)}
-                      disabled={busyPlayerID === participant.PlayerID}
-                      style={({pressed}) => [styles.controlBtn, styles.removeBtn, pressed && styles.controlBtnPressed]}
-                    >
-                      <Text style={styles.removeBtnText}>Remove</Text>
-                    </Pressable>
-                  </View>
-                ) : null}
-              </View>
+
+              {participant.finds && participant.finds.length > 0 ? (
+                <View style={styles.evidenceSection}>
+                  <Pressable
+                    onPress={() => setExpandedPlayerID(expandedPlayerID === participant.PlayerID ? null : participant.PlayerID)}
+                    style={({pressed}) => [styles.evidenceHeader, pressed && styles.evidenceHeaderPressed]}
+                  >
+                    <Icons.Photo color='#666' size={14} />
+                    <Text style={styles.evidenceHeaderText}>
+                      {participant.finds.length} {participant.finds.length === 1 ? 'find' : 'finds'} with evidence
+                    </Text>
+                    <Text style={styles.evidenceToggle}>
+                      {expandedPlayerID === participant.PlayerID ? '▼' : '▶'}
+                    </Text>
+                  </Pressable>
+
+                  {expandedPlayerID === participant.PlayerID ? (
+                    <View style={styles.evidenceThumbnails}>
+                      {participant.finds.map((find, findIndex) => {
+                        const imageURL = getFindImageURL(find);
+                        const hasImage = imageURL && imageURL !== 'https://placehold.co/600x400/png';
+                        return (
+                          <View key={`${participant.PlayerID}-find-${findIndex}`} style={styles.evidenceThumbWrap}>
+                            {hasImage ? (
+                              <Pressable
+                                onPress={() => {
+                                  setSelectedEvidence({
+                                    uri: imageURL,
+                                    cacheName: getCacheName(find),
+                                    playerName: participant.UserName,
+                                  });
+                                  setEvidenceModal(true);
+                                }}
+                              >
+                                <Image
+                                  source={{ uri: imageURL }}
+                                  style={styles.evidenceThumb}
+                                />
+                              </Pressable>
+                            ) : (
+                              <View style={[styles.evidenceThumb, styles.evidencePlaceholder]}>
+                                <Text style={styles.placeholderText}>No image</Text>
+                              </View>
+                            )}
+                            <Text style={styles.evidenceCacheName}>{getCacheName(find)}</Text>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  ) : null}
+                </View>
+              ) : null}
             </View>
           ))
         )}
       </ScrollView>
+
+      <Modal
+        visible={evidenceModal}
+        transparent
+        animationType='fade'
+        onRequestClose={() => setEvidenceModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Pressable
+              onPress={() => setEvidenceModal(false)}
+              style={styles.modalClose}
+            >
+              <Text style={styles.modalCloseText}>✕</Text>
+            </Pressable>
+            {selectedEvidence?.uri ? (
+              <Image
+                source={{ uri: selectedEvidence.uri }}
+                style={styles.modalImage}
+                resizeMode='contain'
+              />
+            ) : null}
+            <View style={styles.modalInfo}>
+              {selectedEvidence?.cacheName ? (
+                <Text style={styles.modalInfoLabel}>Cache: <Text style={styles.modalInfoValue}>{selectedEvidence.cacheName}</Text></Text>
+              ) : null}
+              {selectedEvidence?.playerName ? (
+                <Text style={styles.modalInfoLabel}>Player: <Text style={styles.modalInfoValue}>{selectedEvidence.playerName}</Text></Text>
+              ) : null}
+            </View>
+          </View>
+        </View>
+      </Modal>
     </Screen>
   );
 };
@@ -377,6 +494,110 @@ const styles = StyleSheet.create({
   removeBtnText: {
     color: '#b71c1c',
     fontSize: 11,
+    fontWeight: '700',
+  },
+  evidenceSection: {
+    backgroundColor: 'rgba(100, 150, 200, 0.05)',
+    borderBottomWidth: 1,
+    borderColor: 'lightgray',
+  },
+  evidenceHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  evidenceHeaderPressed: {
+    backgroundColor: 'rgba(0, 0, 0, 0.03)',
+  },
+  evidenceHeaderText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '600',
+  },
+  evidenceToggle: {
+    color: '#999',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  evidenceThumbnails: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+    gap: 10,
+  },
+  evidenceThumbWrap: {
+    alignItems: 'center',
+    width: '25%',
+    gap: 4,
+  },
+  evidenceThumb: {
+    width: '100%',
+    aspectRatio: 1,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    backgroundColor: '#f5f5f5',
+  },
+  evidencePlaceholder: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  placeholderText: {
+    fontSize: 10,
+    color: '#999',
+    textAlign: 'center',
+    fontWeight: '600',
+  },
+  evidenceCacheName: {
+    fontSize: 10,
+    color: '#555',
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    overflow: 'hidden',
+    width: '100%',
+  },
+  modalClose: {
+    alignSelf: 'flex-end',
+    padding: 12,
+    backgroundColor: '#f0f0f0',
+  },
+  modalCloseText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  modalImage: {
+    width: '100%',
+    height: 350,
+    backgroundColor: '#f5f5f5',
+  },
+  modalInfo: {
+    padding: 16,
+    gap: 8,
+    backgroundColor: '#fafafa',
+  },
+  modalInfoLabel: {
+    fontSize: 13,
+    color: '#666',
+    fontWeight: '600',
+  },
+  modalInfoValue: {
+    color: '#333',
     fontWeight: '700',
   },
 });
