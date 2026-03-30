@@ -136,6 +136,7 @@ const EventCacheListScreen = ({navigation, route}) => {
   const [userLocation, setUserLocation] = useState(null);
   const [locationLoading, setLocationLoading] = useState(true);
   const [selectedCache, setSelectedCache] = useState(null);
+  const [selectionNonce, setSelectionNonce] = useState(0);
   const [leaderboardRefreshKey, setLeaderboardRefreshKey] = useState(Date.now());
   const [evidenceByCache, setEvidenceByCache] = useState({});
   const mapRef = useRef(null);
@@ -184,7 +185,13 @@ const EventCacheListScreen = ({navigation, route}) => {
     });
   };
   const recenterMap = () => requestLocation(true);
-  const selectCache = (cache) => setSelectedCache(cache);
+  const selectCache = (cache) => {
+    const cacheKey = getCacheKey(cache);
+    // Allow reopening AR for the same unfound cache on repeated taps.
+    autoOpenedCameraByCacheRef.current[cacheKey] = false;
+    setSelectedCache(cache);
+    setSelectionNonce((prev) => prev + 1);
+  };
   const handleEvidenceCaptured = useCallback((payload) => {
     const cacheID = payload?.cacheID;
     const uri = payload?.uri;
@@ -219,12 +226,23 @@ const EventCacheListScreen = ({navigation, route}) => {
 
   const refreshEvidence = useCallback(async () => {
     try {
+      const currentEventID = getEventID(event);
+      if (!currentEventID) {
+        setEvidenceByCache({});
+        return;
+      }
+
       const evidenceMap = await loadEvidenceMap();
-      setEvidenceByCache(evidenceMap);
+      const filtered = Object.fromEntries(
+        Object.entries(evidenceMap).filter(([, entry]) => (
+          String(entry?.eventID) === String(currentEventID)
+        )),
+      );
+      setEvidenceByCache(filtered);
     } catch (error) {
       // Ignore evidence read failures to avoid interrupting gameplay.
     }
-  }, []);
+  }, [event]);
 
   const loadEventCaches = useCallback(async () => {
     const eventID = getEventID(event);
@@ -632,7 +650,7 @@ const EventCacheListScreen = ({navigation, route}) => {
     if (Number.isFinite(meters) && meters > AUTO_CAMERA_RESET_RADIUS_METERS && alreadyOpened) {
       autoOpenedCameraByCacheRef.current[cacheKey] = false;
     }
-  }, [isFocused, selectedCache, userLocation, navigation, event, handleEvidenceCaptured, handleDiscoveryLogged]);
+  }, [isFocused, selectedCache, userLocation, navigation, event, handleEvidenceCaptured, handleDiscoveryLogged, selectionNonce]);
 
   const selectedDistanceText = useMemo(() => {
     if (!selectedCache || !userLocation) return '';

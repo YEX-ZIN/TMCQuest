@@ -45,3 +45,19 @@ export const saveEvidenceEntry = async ({
   await AsyncStorage.setItem(EVIDENCE_STORE_KEY, JSON.stringify(updated));
   return entry;
 };
+
+export const clearEvidenceForEvent = async (eventID) => {
+  if (eventID === null || eventID === undefined) return;
+
+  const map = await loadEvidenceMap();
+  const eventKey = String(eventID);
+
+  const filteredEntries = Object.entries(map).filter(([, entry]) => {
+    const entryEventID = entry?.eventID;
+    if (entryEventID === null || entryEventID === undefined) return true;
+    return String(entryEventID) !== eventKey;
+  });
+
+  const updated = Object.fromEntries(filteredEntries);
+  await AsyncStorage.setItem(EVIDENCE_STORE_KEY, JSON.stringify(updated));
+};

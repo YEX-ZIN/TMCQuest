@@ -6,6 +6,7 @@ import { Button } from '../UI/Button';
 import Icons from '../UI/Icons';
 import API from '../API/API';
 import useCurrentUser from '../store/useCurrentUser';
+import { clearEvidenceForEvent } from '../store/evidenceStore';
 
 const normaliseList = (r) => {
   if (!r) return [];
@@ -211,6 +212,7 @@ const DashboardScreen = ({navigation}) => {
             Alert.alert('Failed', response.message || 'Could not complete the action.');
             return;
           }
+          await clearEvidenceForEvent(quest.EventID);
           setQuests(prev => prev.filter(q => q !== quest));
         },
       },
