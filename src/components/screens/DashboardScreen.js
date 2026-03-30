@@ -286,47 +286,6 @@ const DashboardScreen = ({navigation}) => {
           </View>
         </View>
 
-        <View style={styles.cardsContainer}>
-          <AdventureCard
-            icon={<Icons.Map />}
-            modeLabel='PRIVATE MODE'
-            title='Create an Event'
-            description='Set up a private treasure hunt for your group. Place caches, set a time window, and share an invite code.'
-            tags={['Set time window', 'Share code', 'Track players']}
-            buttonLabel='Create Event'
-            buttonIcon={<Icons.Add />}
-            onPress={handleCreateEvent}
-            styleButton={styles.primaryButton}
-            styleLabel={styles.primaryLabel}
-          />
-
-          <AdventureCard
-            icon={<Icons.Key />}
-            modeLabel='PLAYER MODE'
-            title='Join an Event'
-            description='Have an invite code? Jump into an existing hunt and compete on the leaderboard.'
-            tags={['Enter code', 'Find caches', 'Earn points']}
-            buttonLabel='Join Event'
-            buttonIcon={<Icons.Submit />}
-            onPress={handleJoinEvent}
-            styleButton={styles.secondaryButton}
-            styleLabel={styles.secondaryLabel}
-          />
-
-          <AdventureCard
-            icon={<Icons.Map />}
-            modeLabel='GLOBAL MODE'
-            title='Public World'
-            description='View all public caches on a shared map, navigate to them, and open the event to log discoveries.'
-            tags={['Shared map', 'AR nearby', 'Public ranks']}
-            buttonLabel='Explore Public Caches'
-            buttonIcon={<Icons.Map color='#5c3b10' />}
-            onPress={handlePublicWorld}
-            styleButton={styles.tertiaryButton}
-            styleLabel={styles.tertiaryLabel}
-          />
-        </View>
-
         {/* ── My Quests ── */}
         <View style={styles.questSection}>
           <View style={styles.questHeadRow}>
@@ -342,7 +301,7 @@ const DashboardScreen = ({navigation}) => {
             </View>
           ) : quests.length === 0 ? (
             <View style={styles.questEmpty}>
-              <Text style={styles.questEmptyText}>No quests yet. Create or join one above.</Text>
+              <Text style={styles.questEmptyText}>No quests yet. Create or join one below.</Text>
             </View>
           ) : (
             quests.map((quest) => (
@@ -387,6 +346,47 @@ const DashboardScreen = ({navigation}) => {
               </Pressable>
             ))
           )}
+        </View>
+
+        <View style={styles.cardsContainer}>
+          <AdventureCard
+            icon={<Icons.Map />}
+            modeLabel='PRIVATE MODE'
+            title='Create an Event'
+            description='Set up a private treasure hunt for your group. Place caches, set a time window, and share an invite code.'
+            tags={['Set time window', 'Share code', 'Track players']}
+            buttonLabel='Create Event'
+            buttonIcon={<Icons.Add />}
+            onPress={handleCreateEvent}
+            styleButton={styles.primaryButton}
+            styleLabel={styles.primaryLabel}
+          />
+
+          <AdventureCard
+            icon={<Icons.Key />}
+            modeLabel='PLAYER MODE'
+            title='Join an Event'
+            description='Have an invite code? Jump into an existing hunt and compete on the leaderboard.'
+            tags={['Enter code', 'Find caches', 'Earn points']}
+            buttonLabel='Join Event'
+            buttonIcon={<Icons.Submit />}
+            onPress={handleJoinEvent}
+            styleButton={styles.secondaryButton}
+            styleLabel={styles.secondaryLabel}
+          />
+
+          <AdventureCard
+            icon={<Icons.Map />}
+            modeLabel='GLOBAL MODE'
+            title='Public World'
+            description='View all public caches on a shared map, navigate to them, and open the event to log discoveries.'
+            tags={['Shared map', 'AR nearby', 'Public ranks']}
+            buttonLabel='Explore Public Caches'
+            buttonIcon={<Icons.Map color='#5c3b10' />}
+            onPress={handlePublicWorld}
+            styleButton={styles.tertiaryButton}
+            styleLabel={styles.tertiaryLabel}
+          />
         </View>
       </ScrollView>
     </ImageBackground>
