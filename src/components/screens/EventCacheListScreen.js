@@ -725,7 +725,6 @@ const EventCacheListScreen = ({navigation, route}) => {
               ...getCacheCoordinates(cache),
             }}
             title={cache.CacheName}
-            description={cache.CacheClue}
             anchor={{ x: 0.5, y: 0.5 }}
             onPress={() => selectCache(cache)}
             onCalloutPress={() => handleManageCacheFromMap(cache)}
@@ -743,47 +742,6 @@ const EventCacheListScreen = ({navigation, route}) => {
         })}
       </MapView>
 
-      <View style={styles.topOverlay}>
-        <View style={styles.eventHeader}>
-          <View style={styles.eventTopRow}>
-            <Text style={styles.eventName}>{event.EventName}</Text>
-            <View style={styles.eventBadge}>
-              <Text style={styles.eventBadgeText}>Active</Text>
-            </View>
-          </View>
-          <View style={styles.metaPill}>
-            <View style={styles.metaInline}>
-              <Icons.Clock />
-              <View style={styles.timeBlock}>
-                <Text style={styles.metaDateText}>{formatDate(eventStart)}</Text>
-                <Text style={styles.metaTimeText}>{formatTime(eventStart)} - {formatTime(eventFinish)}</Text>
-              </View>
-            </View>
-          </View>
-          {eventDescription ? (
-            <View style={styles.metaPill}>
-              <Text style={styles.eventDescriptionText}>{eventDescription}</Text>
-            </View>
-          ) : null}
-          <View style={styles.metaRow}>
-            <View style={styles.metaPillSmall}>
-              <Text style={styles.codeValue}>Quest Code: {inviteCode}</Text>
-            </View>
-            <View style={styles.metaPillSmall}>
-              <View style={styles.metaInline}>
-                <Icons.TreasureChest size={15} color='#222222' />
-                <Text style={styles.cacheCount}>{remainingCacheCount}</Text>
-              </View>
-            </View>
-          </View>
-          {isHost && (
-            <View style={styles.metaPill}>
-              <Text style={styles.hostHintText}>Host mode: long-press map to add, tap marker callout to edit or delete an existing hunt location.</Text>
-            </View>
-          )}
-        </View>
-      </View>
-
       {locationLoading ? (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size='small' color='white' />
@@ -800,6 +758,33 @@ const EventCacheListScreen = ({navigation, route}) => {
 
       <View style={styles.bottomOverlay}>
         <View style={styles.actionPanel}>
+          <View style={styles.eventRow}>
+            <Text style={styles.eventNameBottom}>{event.EventName}</Text>
+            <View style={styles.eventBadgeBottom}>
+              <Text style={styles.eventBadgeTextBottom}>Active</Text>
+            </View>
+          </View>
+          <View style={styles.eventDateRow}>
+            <Icons.Clock size={14} color='#d9d9d9' />
+            <View style={styles.timeBlockBottom}>
+              <Text style={styles.metaDateTextBottom}>{formatDate(eventStart)}</Text>
+              <Text style={styles.metaTimeTextBottom}>{formatTime(eventStart)} - {formatTime(eventFinish)}</Text>
+            </View>
+          </View>
+          {eventDescription ? (
+            <Text style={styles.eventDescriptionTextBottom}>{eventDescription}</Text>
+          ) : null}
+          <View style={styles.eventMetaRowBottom}>
+            <Text style={styles.codeValueBottom}>Quest Code: {inviteCode}</Text>
+            <View style={styles.cacheCountWrapBottom}>
+              <Icons.TreasureChest size={14} color='#f0f0f0' />
+              <Text style={styles.cacheCountBottom}>{remainingCacheCount}</Text>
+            </View>
+          </View>
+          {isHost ? (
+            <Text style={styles.hostHintTextBottom}>Host mode: long-press map to add, tap marker callout to edit or delete a hunt location.</Text>
+          ) : null}
+          <View style={styles.sectionDivider} />
           <View style={styles.selectedRow}>
             <Text style={styles.selectedTitle}>{selectedCache ? selectedCache.CacheName : 'Select a cache marker'}</Text>
             {selectedCache ? (
@@ -842,13 +827,6 @@ const EventCacheListScreen = ({navigation, route}) => {
               icon={<Icons.Leaderboard color='white' />}
               onClick={gotoLeaderboard}
               styleButton={[styles.actionButton, styles.leaderboardButton]}
-              styleLabel={styles.actionLabel}
-            />
-            <Button
-              label=''
-              icon={<Icons.Add />}
-              onClick={isLoggingFind ? () => {} : logDiscovery}
-              styleButton={[styles.actionButton, styles.logButton]}
               styleLabel={styles.actionLabel}
             />
           </View>
@@ -1062,6 +1040,91 @@ const styles = StyleSheet.create({
     padding: 10,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.18)',
+  },
+  eventRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginBottom: 6,
+  },
+  eventNameBottom: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '700',
+    flex: 1,
+  },
+  eventBadgeBottom: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.35)',
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  eventBadgeTextBottom: {
+    color: '#f0f0f0',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  eventDateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 6,
+  },
+  timeBlockBottom: {
+    gap: 1,
+  },
+  metaDateTextBottom: {
+    color: '#f0f0f0',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  metaTimeTextBottom: {
+    color: '#d5d5d5',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  eventDescriptionTextBottom: {
+    color: '#e2e2e2',
+    fontSize: 12,
+    lineHeight: 16,
+    marginBottom: 6,
+  },
+  eventMetaRowBottom: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginBottom: 6,
+  },
+  codeValueBottom: {
+    color: '#f0f0f0',
+    fontSize: 12,
+    fontWeight: '700',
+    flex: 1,
+  },
+  cacheCountWrapBottom: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  cacheCountBottom: {
+    color: '#f0f0f0',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  hostHintTextBottom: {
+    color: '#d7d7d7',
+    fontSize: 10,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  sectionDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    marginBottom: 8,
   },
   selectedRow: {
     flexDirection: 'row',

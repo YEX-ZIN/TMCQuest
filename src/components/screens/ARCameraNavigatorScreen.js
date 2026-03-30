@@ -371,6 +371,9 @@ const ARCameraNavigatorScreen = ({ navigation, route }) => {
           cacheName: cache?.CacheName || 'Treasure Cache',
           points: Number(cache?.CachePoints || 0),
         });
+        setIsSubmittingFind(false);
+        navigation.goBack();
+        return;
       }
 
       Alert.alert('Discovery Logged', 'Your find was saved successfully.', [
