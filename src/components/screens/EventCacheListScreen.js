@@ -54,6 +54,58 @@ const getCacheKey = (cache) => {
   return `${latitude}-${longitude}`;
 };
 
+const getNextUnfoundCache = (allCaches, foundLookup, userLocation = null, completedCacheID = null) => {
+  const caches = Array.isArray(allCaches) ? allCaches : [];
+  const unfoundCaches = caches.filter((cache) => {
+    const cacheID = getCacheID(cache);
+    if (cacheID === null || cacheID === undefined) return false;
+    return foundLookup[String(cacheID)] !== true;
+  });
+
+  if (unfoundCaches.length === 0) return null;
+
+  if (userLocation?.latitude !== undefined && userLocation?.longitude !== undefined) {
+    const withDistance = unfoundCaches
+      .map((cache) => {
+        const { latitude, longitude } = getCacheCoordinates(cache);
+        if (!hasCoordinates({ latitude, longitude })) return null;
+
+        const meters = distanceInMeters(
+          userLocation.latitude,
+          userLocation.longitude,
+          latitude,
+          longitude,
+        );
+
+        if (!Number.isFinite(meters)) return null;
+        return { cache, meters };
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.meters - b.meters);
+
+    if (withDistance.length > 0) return withDistance[0].cache;
+  }
+
+  if (completedCacheID === null || completedCacheID === undefined) return unfoundCaches[0];
+
+  const completedIndex = caches.findIndex((cache) => {
+    const cacheID = getCacheID(cache);
+    if (cacheID === null || cacheID === undefined) return false;
+    return String(cacheID) === String(completedCacheID);
+  });
+
+  if (completedIndex < 0) return unfoundCaches[0];
+
+  for (let index = completedIndex + 1; index < caches.length; index += 1) {
+    const candidate = caches[index];
+    const candidateID = getCacheID(candidate);
+    if (candidateID === null || candidateID === undefined) continue;
+    if (foundLookup[String(candidateID)] !== true) return candidate;
+  }
+
+  return unfoundCaches[0];
+};
+
 const DISCOVERY_RADIUS_METERS = 30;
 const AUTO_CAMERA_RADIUS_METERS = 100;
 const AUTO_CAMERA_RESET_RADIUS_METERS = 130;
@@ -139,6 +191,7 @@ const EventCacheListScreen = ({navigation, route}) => {
   const [selectionNonce, setSelectionNonce] = useState(0);
   const [leaderboardRefreshKey, setLeaderboardRefreshKey] = useState(Date.now());
   const [evidenceByCache, setEvidenceByCache] = useState({});
+  const [recentlyCompletedCacheID, setRecentlyCompletedCacheID] = useState(null);
   const mapRef = useRef(null);
   const hasCenteredOnOpenRef = useRef(false);
   const autoOpenedCameraByCacheRef = useRef({});
@@ -206,23 +259,28 @@ const EventCacheListScreen = ({navigation, route}) => {
     }));
   }, []);
 
-  const handleDiscoveryLogged = useCallback((payload) => {
-    const cacheID = payload?.cacheID;
+  const markCacheCompleted = useCallback((cacheID) => {
     if (cacheID === null || cacheID === undefined) return;
 
     setFoundCacheLookup((prev) => ({
       ...prev,
       [String(cacheID)]: true,
     }));
-
     setLeaderboardRefreshKey(Date.now() + Math.random());
-    setSelectedCache(null);
+    setRecentlyCompletedCacheID(String(cacheID));
+  }, []);
+
+  const handleDiscoveryLogged = useCallback((payload) => {
+    const cacheID = payload?.cacheID;
+    if (cacheID === null || cacheID === undefined) return;
+
+    markCacheCompleted(cacheID);
 
     const points = Number(payload?.points || 0);
     if (Number.isFinite(points)) {
       Alert.alert('Treasure Logged', `+${points} points added for ${payload?.cacheName || 'this cache'}.`);
     }
-  }, []);
+  }, [markCacheCompleted]);
 
   const refreshEvidence = useCallback(async () => {
     try {
@@ -570,12 +628,7 @@ const EventCacheListScreen = ({navigation, route}) => {
       return;
     }
 
-    setFoundCacheLookup((prev) => ({
-      ...prev,
-      [String(cacheID)]: true,
-    }));
-    setLeaderboardRefreshKey(Date.now() + Math.random());
-    setSelectedCache(null);
+    markCacheCompleted(cacheID);
 
     const points = Number(selectedCache.CachePoints || 0);
     const bonusMsg = points > 50 ? '🏆 Epic find!' : points > 25 ? '⭐ Great find!' : '✨ Treasure found!';
@@ -624,6 +677,42 @@ const EventCacheListScreen = ({navigation, route}) => {
   }, []);
   useEffect(() => { loadEventCaches(); }, [loadEventCaches]);
   useEffect(() => { loadFoundCachesForCurrentPlayer(); }, [loadFoundCachesForCurrentPlayer]);
+
+  useEffect(() => {
+    const selectedCacheID = getCacheID(selectedCache);
+    const hasValidSelection = selectedCacheID !== null
+      && selectedCacheID !== undefined
+      && foundCacheLookup[String(selectedCacheID)] !== true;
+    const hasUserCoordinates = userLocation?.latitude !== undefined && userLocation?.longitude !== undefined;
+
+    const hasAnyUnfoundCache = eventCaches.some((cache) => {
+      const cacheID = getCacheID(cache);
+      if (cacheID === null || cacheID === undefined) return false;
+      return foundCacheLookup[String(cacheID)] !== true;
+    });
+    const shouldSelectInitialClosest = !selectedCache && hasAnyUnfoundCache && hasUserCoordinates;
+
+    const shouldAdvanceSelection = Boolean(recentlyCompletedCacheID)
+      || (selectedCache && !hasValidSelection)
+      || shouldSelectInitialClosest;
+    if (!shouldAdvanceSelection) return;
+
+    const nextCache = getNextUnfoundCache(eventCaches, foundCacheLookup, userLocation, recentlyCompletedCacheID);
+    const nextCacheID = getCacheID(nextCache);
+
+    if (nextCacheID === null || nextCacheID === undefined) {
+      setSelectedCache(null);
+      if (recentlyCompletedCacheID !== null) setRecentlyCompletedCacheID(null);
+      return;
+    }
+
+    if (String(nextCacheID) !== String(selectedCacheID)) {
+      setSelectedCache(nextCache);
+      setSelectionNonce((prev) => prev + 1);
+    }
+
+    if (recentlyCompletedCacheID !== null) setRecentlyCompletedCacheID(null);
+  }, [eventCaches, foundCacheLookup, selectedCache, recentlyCompletedCacheID, userLocation]);
 
   useEffect(() => {
     if (!isFocused || !selectedCache || !userLocation) return;
