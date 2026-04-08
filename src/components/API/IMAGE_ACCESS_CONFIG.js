@@ -1,4 +1,4 @@
-export const IMAGE_ACCESS_GUIDE = {
+export const IMAGE_ACCESS_CONFIG = {
   adminViewPath: 'Dashboard → Event → Leaderboard',
   storageLocation: 'AsyncStorage (geoquest_evidence_photos)',
   apiEndpoint: '/api/finds',
