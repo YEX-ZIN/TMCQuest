@@ -2,10 +2,7 @@ import { Image } from 'react-native';
 
 const DEFAULT_FALLBACK_IMAGE = 'https://placehold.co/600x400/png';
 
-/**
- * Converts an image URI to base64 string
- * Handles both local file URIs and remote URLs
- */
+
 export const convertImageToBase64 = async (uri) => {
   if (!uri) return null;
 
@@ -70,10 +67,7 @@ export const validateImageURI = async (uri) => {
   }
 };
 
-/**
- * Ensures an image URL is valid and accessible
- * Returns fallback if image fails validation
- */
+
 export const ensureImageURL = async (imageURL) => {
   if (!imageURL) return DEFAULT_FALLBACK_IMAGE;
 
@@ -131,11 +125,6 @@ export const prepareFindPayload = async (find) => {
   return payload;
 };
 
-/**
- * Gets display-friendly image URL
- * For local base64 data, returns it as-is
- * For remote URLs, returns the URL
- */
 export const getImageDisplayURL = (uri) => {
   if (!uri) return DEFAULT_FALLBACK_IMAGE;
   return uri;
