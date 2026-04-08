@@ -1,3 +1,6 @@
+import { Image } from 'react-native';
+import { convertImageToBase64, prepareFindPayload } from './imageUtils';
+
 const API = {};
 
 const GEOQUEST_BASE_URL = process.env.EXPO_PUBLIC_GEOQUEST_API_BASE || 'https://mark0s.com/geoquest/v1/api';
@@ -38,23 +41,29 @@ API.delete = (endpoint) => callFetch(endpoint, 'DELETE');
 
 export default API;
 
-const normaliseFindPayload = (payload) => {
-  if (!payload || typeof payload !== 'object') return payload;
-  const next = { ...payload };
-  const fallbackFindImageURL = 'https://placehold.co/600x400/png';
+/**
+ * Converts an image URI to base64 string for API submission.
+ * Supports local file URIs (file://, assets-library://) and remote URLs
+ */
+export const convertImageToBase64Inline = async (uri) => {
+  return convertImageToBase64(uri);
+};
 
-  // GeoQuest spec uses FindImageURL for evidence media.
-  if (next.FindEvidenceURL && !next.FindImageURL) {
-    next.FindImageURL = next.FindEvidenceURL;
-  }
-  delete next.FindEvidenceURL;
+/**
+ * Gets image dimensions from URI for validation
+ */
+export const getImageDimensions = (uri) => {
+  return new Promise((resolve, reject) => {
+    Image.getSize(
+      uri,
+      (width, height) => resolve({ width, height }),
+      (error) => reject(error)
+    );
+  });
+};
 
-  // Some API keys enforce FindImageURL for all find logs.
-  if (!next.FindImageURL) {
-    next.FindImageURL = fallbackFindImageURL;
-  }
-
-  return next;
+const normaliseFindPayload = async (payload) => {
+  return prepareFindPayload(payload);
 };
 
 const normaliseCachePayload = (payload) => {
@@ -83,7 +92,7 @@ const normaliseEventPayload = (payload) => {
   return next;
 };
 
-const normaliseRequestPayload = (endpoint, payload) => {
+const normaliseRequestPayload = async (endpoint, payload) => {
   if (!payload || typeof payload !== 'object') return payload;
 
   if (endpoint.includes('/finds')) return normaliseFindPayload(payload);
@@ -109,7 +118,7 @@ const callFetch = async (endpoint, method, dataObj = null) => {
   // Build request object
   let requestObj = { method: method }; // GET, POST, PUT or DELETE
   if (dataObj) {
-    const normalisedPayload = normaliseRequestPayload(endpoint, dataObj);
+    const normalisedPayload = await normaliseRequestPayload(endpoint, dataObj);
     requestObj = {
       ...requestObj,
       headers: { 'Content-type': 'application/json' },

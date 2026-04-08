@@ -6,6 +6,7 @@ import { DeviceMotion } from 'expo-sensors';
 import { Button } from '../UI/Button';
 import { saveEvidenceEntry } from '../store/evidenceStore';
 import API from '../API/API';
+import { convertImageToBase64, prepareFindPayload } from '../API/imageUtils';
 import useCurrentUser from '../store/useCurrentUser';
 
 const toRadians = (degrees) => degrees * (Math.PI / 180);
@@ -348,15 +349,25 @@ const ARCameraNavigatorScreen = ({ navigation, route }) => {
         FindCacheID: cacheID,
         FindDatetime: new Date().toISOString(),
       };
-      if (capturedPhotoURI) payload.FindImageURL = capturedPhotoURI;
+      
+      // Prepare find with image if captured
+      if (capturedPhotoURI) {
+        payload.FindImageURL = capturedPhotoURI;
+      }
 
-      let createFindResponse = await API.post(API.geoQuest.finds(), payload);
+      // Normalize the payload (converts images to base64)
+      const normalizedPayload = await prepareFindPayload(payload);
+
+      let createFindResponse = await API.post(API.geoQuest.finds(), normalizedPayload);
+      
+      // If submission fails with image, try again without it
       if (!createFindResponse.isSuccess && capturedPhotoURI) {
-        createFindResponse = await API.post(API.geoQuest.finds(), {
+        const payloadWithoutImage = {
           FindPlayerID: playerID,
           FindCacheID: cacheID,
           FindDatetime: payload.FindDatetime,
-        });
+        };
+        createFindResponse = await API.post(API.geoQuest.finds(), payloadWithoutImage);
       }
 
       if (!createFindResponse.isSuccess) {
