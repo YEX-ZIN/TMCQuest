@@ -137,6 +137,64 @@ const formatDistance = (meters) => {
   return `${(meters / 1000).toFixed(2)} km away`;
 };
 
+const formatCountdown = (milliseconds) => {
+  const safeMilliseconds = Math.max(0, Number(milliseconds) || 0);
+  const totalSeconds = Math.floor(safeMilliseconds / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }
+
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+};
+
+const getQuestTimerText = (startValue, finishValue, nowTimestamp) => {
+  const now = Number(nowTimestamp) || Date.now();
+  const startTime = new Date(startValue).getTime();
+  const finishTime = new Date(finishValue).getTime();
+
+  const hasStart = Number.isFinite(startTime);
+  const hasFinish = Number.isFinite(finishTime);
+
+  if (!hasStart && !hasFinish) return '';
+
+  if (hasStart && now < startTime) {
+    return `Starts in ${formatCountdown(startTime - now)}`;
+  }
+
+  if (hasFinish && now < finishTime) {
+    return `Ends in ${formatCountdown(finishTime - now)}`;
+  }
+
+  return 'Quest ended';
+};
+
+const QuestTimerText = ({ startValue, finishValue }) => {
+  const [nowTimestamp, setNowTimestamp] = useState(Date.now());
+
+  useEffect(() => {
+    const timerID = setInterval(() => {
+      setNowTimestamp(Date.now());
+    }, 1000);
+
+    return () => {
+      clearInterval(timerID);
+    };
+  }, []);
+
+  const timerText = useMemo(
+    () => getQuestTimerText(startValue, finishValue, nowTimestamp),
+    [startValue, finishValue, nowTimestamp],
+  );
+
+  if (!timerText) return null;
+
+  return <Text style={styles.timerTextBottom}>{timerText}</Text>;
+};
+
 const encodeQuestCode = (value) => {
   const numeric = Number(value);
   if (Number.isNaN(numeric)) return `${value ?? '-'}`;
@@ -878,6 +936,7 @@ const EventCacheListScreen = ({navigation, route}) => {
               <Text style={styles.metaTimeTextBottom}>{formatTime(eventStart)} - {formatTime(eventFinish)}</Text>
             </View>
           </View>
+          <QuestTimerText startValue={eventStart} finishValue={eventFinish} />
           {eventDescription ? (
             <Text style={styles.eventDescriptionTextBottom}>{eventDescription}</Text>
           ) : null}
@@ -1192,6 +1251,13 @@ const styles = StyleSheet.create({
     color: '#d5d5d5',
     fontSize: 11,
     fontWeight: '600',
+  },
+  timerTextBottom: {
+    color: '#f9d67a',
+    fontSize: 11,
+    fontWeight: '700',
+    marginBottom: 6,
+    marginLeft: 20,
   },
   eventDescriptionTextBottom: {
     color: '#e2e2e2',
